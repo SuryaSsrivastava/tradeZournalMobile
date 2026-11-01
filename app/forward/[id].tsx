@@ -1,15 +1,32 @@
-import { useLocalSearchParams } from "expo-router"
-import { Text, View } from "react-native"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useState } from "react"
+import { Alert, Text, View } from "react-native"
 import { api, type ForwardTrade } from "../../src/api"
 import { ago, price } from "../../src/format"
 import { useLoad } from "../../src/hooks"
 import { colors } from "../../src/theme"
-import { Card, Empty, ErrorNote, Label, Loading, Muted, Row, Screen, Title, tone } from "../../src/ui"
+import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Row, Screen, Title, tone } from "../../src/ui"
 
 export default function ForwardDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const f = useLoad(() => api.forwardTest(Number(id)), { every: 60_000, deps: [id] })
   const d = f.data
+  const router = useRouter()
+  const [busy, setBusy] = useState<"status" | "delete" | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const running = d?.status === "active"
+
+  const toggle = async () => {
+    setBusy("status"); setError(null)
+    try { await api.setForwardStatus(Number(id), running ? "stopped" : "active"); await f.refresh() } catch (e) { setError(e instanceof Error ? e.message : "Could not change that.") } finally { setBusy(null) }
+  }
+  const remove = () => Alert.alert("Delete this forward test?", "Its trades and results are removed for good, on the website too. Pause it instead if you may want it back.", [
+    { text: "Keep it", style: "cancel" },
+    { text: "Delete", style: "destructive", onPress: async () => {
+      setBusy("delete"); setError(null)
+      try { await api.deleteForward(Number(id)); router.back() } catch (e) { setError(e instanceof Error ? e.message : "Could not delete it."); setBusy(null) }
+    } },
+  ])
   const stats = d?.result?.stats ?? d?.stats ?? null
   const open = d?.result?.open ?? []
   const closed = [...(d?.result?.closed ?? [])].reverse().slice(0, 15)
@@ -34,6 +51,13 @@ export default function ForwardDetail() {
           {open.length === 0 ? <Muted style={{ marginBottom: 12 }}>No open trade.</Muted> : open.map((t) => <Trade key={t.entry_at + t.side} t={t} />)}
           <Label>Recent closed trades</Label>
           {closed.length === 0 ? <Empty title="No closed trades yet" /> : closed.map((t) => <Trade key={t.entry_at + t.side} t={t} />)}
+
+          <View style={{ marginTop: 18, gap: 10 }}>
+            {error ? <ErrorNote>{error}</ErrorNote> : null}
+            <Button tone={running ? "ghost" : "primary"} onPress={toggle} busy={busy === "status"} disabled={busy !== null}>{running ? "Pause this test" : "Resume this test"}</Button>
+            <Muted style={{ textAlign: "center" }}>{running ? "A paused test stops looking for new trades. Its results are kept." : "A resumed test starts looking for new trades again."}</Muted>
+            <Button tone="danger" onPress={remove} busy={busy === "delete"} disabled={busy !== null}>Delete this test</Button>
+          </View>
         </>
       ) : null}
     </Screen>

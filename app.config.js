@@ -35,7 +35,10 @@ module.exports = {
     plugins: [
       "expo-router",
       "expo-secure-store",
+      ["expo-share-intent", { disableIOS: true, androidIntentFilters: ["image/*"] }],  // "Share" a screenshot from the gallery or TradingView straight to EdgeLabHub (Android)
+      ["expo-local-authentication", { faceIDPermission: "Use Face ID to unlock EdgeLabHub." }],
       ...(process.env.LIVE_NOTIFICATION === "1" ? ["./plugins/withLiveService"] : []),  // the live-trades notification: experimental, only in builds that ask for it (profile "live")
+      ...(process.env.WIDGET === "1" ? [["react-native-android-widget", { widgets: [{ name: "Today", label: "EdgeLabHub today", description: "Today's result and your open trades", minWidth: "180dp", minHeight: "110dp", targetCellWidth: 3, targetCellHeight: 2, resizeMode: "horizontal|vertical", updatePeriodMillis: 1800000 }] }]] : []),  // the home-screen widget: only in builds that ask for it (profile "widget")
       ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#22d38a" }],
     ],
     experiments: { typedRoutes: false },

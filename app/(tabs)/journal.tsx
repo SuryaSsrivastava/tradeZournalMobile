@@ -30,9 +30,9 @@ export default function Journal() {
   const [range, setRange] = useState(0)
   const [filter, setFilter] = useState<Filter>("all")
   const [day, setDay] = useState<Date | null>(null)
-  const trades = useLoad(() => api.journalTrades(500))
-  const accounts = useLoad(() => api.accounts())
-  const counts = useLoad(() => api.journalShotCounts())
+  const trades = useLoad(() => api.journalTrades(500), { cache: "trades500" })
+  const accounts = useLoad(() => api.accounts(), { cache: "accounts" })
+  const counts = useLoad(() => api.journalShotCounts(), { cache: "shotcounts" })
   const { mode, filter: accts, setMode } = useScope()
   const every = trades.data ?? []
   const all = every.filter((t) => inScope(t, mode, accts))  // follows the account chosen on Home or here

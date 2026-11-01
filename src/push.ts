@@ -14,9 +14,12 @@ let registered: string | null = null
 /** Where a notification's `link` (a web path such as /forward/12) should take the member inside the app. */
 export function routeFor(link?: string | null): string {
   const l = link ?? ""
+  const tr = l.match(/^\/trade\/(\d+)/)
+  if (tr) return `/trade/${tr[1]}`
   const fwd = l.match(/^\/forward\/(\d+)/)
   if (fwd) return `/forward/${fwd[1]}`
   if (l.startsWith("/calendar")) return "/calendar"
+  if (l.startsWith("/markets/")) return "/price-alerts"
   if (l.startsWith("/live") || l.startsWith("/accounts")) return "/positions"
   return "/alerts"
 }
@@ -37,6 +40,13 @@ export async function registerForPush(): Promise<{ ok: boolean; message: string 
       return { ok: false, message: e instanceof Error ? e.message : "Could not set up the notification channel." }
     }
   }
+  try {  // the buttons on the "how did it feel?" notification: two feelings and a reply box, each saved on the trade
+    await Notifications.setNotificationCategoryAsync("trade-review", [
+      { identifier: "feel:calm", buttonTitle: "😌 Calm", options: { opensAppToForeground: true } },
+      { identifier: "feel:fomo", buttonTitle: "😬 Rushed", options: { opensAppToForeground: true } },
+      { identifier: "note", buttonTitle: "✏️ Add note", textInput: { submitButtonTitle: "Save", placeholder: "What happened?" }, options: { opensAppToForeground: true } },
+    ])
+  } catch { /* the notification still arrives, without buttons */ }
   let { status } = await Notifications.getPermissionsAsync()
   if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status
   if (status !== "granted") return { ok: false, message: "Notifications are switched off for EdgeLabHub in your phone's settings." }

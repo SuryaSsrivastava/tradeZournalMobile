@@ -32,7 +32,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{
-      headerShown: false, tabBarActiveTintColor: colors.green, tabBarInactiveTintColor: colors.muted,
+      headerShown: false, animation: "fade", tabBarActiveTintColor: colors.green, tabBarInactiveTintColor: colors.muted,
       tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border }, tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
     }}>
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: icon("home-outline", "home") }} />

@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import * as SecureStore from "expo-secure-store"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
@@ -52,6 +53,7 @@ export function ScopeBar({ trades, accounts }: { trades: JournalTrade[]; account
   const { mode, filter, setMode, setFilter, clear } = useScope()
   const [open, setOpen] = useState(false)
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const inM = trades.filter((t) => inMode(t, mode))
   const of = (id: string) => inM.filter((t) => (id === "none" ? t.account_id == null : String(t.account_id) === id))
   const sum = (ts: JournalTrade[]) => ts.reduce((a, t) => a + pnlOf(t), 0)
@@ -92,6 +94,10 @@ export function ScopeBar({ trades, accounts }: { trades: JournalTrade[]; account
               </>
             )}
           </ScrollView>
+          <Pressable onPress={() => { setOpen(false); router.push("/add-account" as never) }} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1.5, borderStyle: "dashed", borderColor: `${colors.green}88`, backgroundColor: `${colors.green}12` }}>
+            <Ionicons name="add-circle" size={20} color={colors.green} />
+            <Text style={{ color: colors.green, fontSize: 14, fontWeight: "800" }}>Add an account</Text>
+          </Pressable>
           <View style={{ marginTop: 12 }}><Button onPress={() => setOpen(false)}>Done</Button></View>
         </View>
       </Modal>

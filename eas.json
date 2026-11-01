@@ -26,7 +26,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1",
+        "EXPO_PUBLIC_STORE_BUILD": "1"
       }
     },
     "live": {
@@ -56,6 +57,17 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1"
+      }
+    },
+    "widget": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1",
+        "WIDGET": "1",
+        "EXPO_PUBLIC_WIDGET": "1"
       }
     }
   },

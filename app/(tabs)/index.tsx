@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
+import { useEffect } from "react"
 import { Text, View } from "react-native"
 import { api, type Market } from "../../src/api"
 import { useAuth } from "../../src/auth"
@@ -11,6 +12,8 @@ import { LiveTrades } from "../../src/live"
 import { chosenAccounts, inScope, ScopeBar, useScope } from "../../src/scope"
 import { CountdownRing, GuardRails, SessionClock, Ticker, type TickerItem } from "../../src/homefx"
 import { equityPoints, journalStats } from "../../src/journal"
+import { BadgeToast, useNewBadges } from "../../src/delight"
+import { StreakCard, WeekCard } from "../../src/progress"
 import { colors, impactColor, radius } from "../../src/theme"
 import { Brand, Card, Label, Loading, Muted, Row, Screen, tone } from "../../src/ui"
 
@@ -20,9 +23,9 @@ const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
 export default function Home() {
   const { user } = useAuth()
   const router = useRouter()
-  const accounts = useLoad(() => api.accounts(), { every: 60_000 })
-  const trades = useLoad(() => api.journalTrades(500), { every: 120_000 })
-  const rules = useLoad(() => api.discipline(), { every: 120_000 })
+  const accounts = useLoad(() => api.accounts(), { every: 60_000, cache: "accounts" })
+  const trades = useLoad(() => api.journalTrades(500), { every: 120_000, cache: "trades500" })
+  const rules = useLoad(() => api.discipline(), { every: 120_000, cache: "discipline" })
   const watch = useLoad(() => api.investWatchlist(), { every: 120_000 })
   // the tape: the watchlist first (starred), then the biggest names of each market, taken one from each in turn so every market shows up
   const movers = useLoad(async () => {
@@ -55,9 +58,14 @@ export default function Home() {
   const unread = notices.data?.unread ?? 0
   const scopes = (rules.data?.scopes ?? []).filter((sc) => sc.meters.length > 0)
   const meters = scopes.flatMap((sc) => sc.meters.map((m) => ({ ...m, scope: scopes.length > 1 ? sc.scope : undefined }))).slice(0, 5)
+  useEffect(() => {  // keep the home-screen widget current (only in builds that contain it)
+    if (process.env.EXPO_PUBLIC_WIDGET === "1" && trades.data) { try { void (require("../../src/widget") as typeof import("../../src/widget")).refreshWidget() } catch { /* no widget in this build */ } }
+  }, [trades.data])
+  const { fresh, done } = useNewBadges(every)
   const refresh = () => { void accounts.refresh(); void trades.refresh(); void notices.refresh(); void next.refresh(); void rules.refresh(); void watch.refresh(); void movers.refresh() }
 
   return (
+    <View style={{ flex: 1 }}>
     <Screen refreshing={accounts.refreshing || trades.refreshing} onRefresh={refresh}>
       <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
         <Brand size={38} />
@@ -100,6 +108,8 @@ export default function Home() {
           <Quick icon="calendar-outline" label="Calendar" onPress={() => router.push("/calendar")} />
         </View>
       </Rise>
+
+      {all.length > 0 ? <><WeekCard trades={all} delay={160} /><StreakCard trades={all} delay={180} /></> : null}
 
       {every.length > 0 && all.length === 0 ? <Card><Muted style={{ textAlign: "center" }}>No trades for this selection. Pick another account above.</Muted></Card> : null}
 
@@ -160,6 +170,8 @@ export default function Home() {
       </Card>
 
     </Screen>
+    <BadgeToast fresh={fresh} onDone={done} />
+    </View>
   )
 }
 

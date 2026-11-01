@@ -5,6 +5,7 @@ import { api, apiServer } from "../src/api"
 import { useAuth } from "../src/auth"
 import { liveNotificationAvailable, liveNotificationEnabled, setLiveNotificationEnabled } from "../src/liveservice"
 import { livePreviewAvailable, startLivePreview, stopLivePreview } from "../src/livepreview"
+import { useLock } from "../src/lock"
 import { registerForPush, unregisterPush } from "../src/push"
 import { colors } from "../src/theme"
 import { Button, Card, ErrorNote, Label, Muted, Row, Screen } from "../src/ui"
@@ -13,12 +14,16 @@ export default function Settings() {
   const { user, signOut } = useAuth()
   const [push, setPush] = useState(true)
   const [promos, setPromos] = useState(true)
+  const [reports, setReports] = useState({ trade_review: true, briefing: true, streak_reminder: true, digest: true, daily_recap: false, monthly_report: true })
   const [live, setLive] = useState(false)
   const [liveNote, setLiveNote] = useState<{ ok: boolean; text: string } | null>(null)
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState<"push" | "test" | null>(null)
+  const lock = useLock()
+  const [lockNote, setLockNote] = useState<{ ok: boolean; text: string } | null>(null)
+  const toggleLock = async (on: boolean) => { const r = await lock.setEnabled(on); setLockNote({ ok: r.ok, text: r.message }) }
 
-  useEffect(() => { api.prefs().then((p) => { setPush(p.push !== false); setPromos(p.promos !== false) }).catch(() => {}) }, [])
+  useEffect(() => { api.prefs().then((p) => { setPush(p.push !== false); setPromos(p.promos !== false); setReports({ trade_review: p.trade_review !== false, briefing: p.briefing !== false, streak_reminder: p.streak_reminder !== false, digest: p.digest !== false, daily_recap: p.daily_recap === true, monthly_report: p.monthly_report !== false }) }).catch(() => {}) }, [])
 
   const togglePush = async (on: boolean) => {
     setBusy("push"); setNote(null)
@@ -57,6 +62,11 @@ export default function Settings() {
   const togglePromos = async (on: boolean) => {
     setPromos(on)
     try { await api.savePrefs({ promos: on }) } catch { setPromos(!on) }
+  }
+
+  const toggleReport = async (key: keyof typeof reports, on: boolean) => {
+    setReports((r) => ({ ...r, [key]: on }))
+    try { await api.savePrefs({ [key]: on }) } catch { setReports((r) => ({ ...r, [key]: !on })) }
   }
 
   const test = async () => {
@@ -101,6 +111,30 @@ export default function Settings() {
           <Switch value={promos} onValueChange={togglePromos} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
         </Row>
         {__DEV__ ? <View style={{ marginTop: 12 }}><Button tone="ghost" onPress={test} busy={busy === "test"}>Send a test notification</Button></View> : null}
+      </Card>
+
+      <Card>
+        <Label>Reminders and recaps</Label>
+        {([["trade_review", "Post-trade check-in", "Right after a trade closes: tap how it felt, or add a note, from the notification."], ["briefing", "Morning briefing", "Your morning: yesterday's result, your streak and the day's big releases."], ["streak_reminder", "Streak reminder", "An evening nudge when you have a streak to keep and have not logged today."], ["digest", "Weekly recap", "Every Monday: how last week went, as a notification."], ["daily_recap", "Daily recap", "After the day ends: your result in one line."], ["monthly_report", "Monthly report", "The 1st of the month: your last 30 days."]] as const).map(([key, title, hint], i) => (
+          <Row key={key} style={{ justifyContent: "space-between", marginTop: i ? 14 : 4 }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{title}</Text>
+              <Muted style={{ marginTop: 3 }}>{hint}</Muted>
+            </View>
+            <Switch value={reports[key]} onValueChange={(on) => void toggleReport(key, on)} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+          </Row>
+        ))}
+      </Card>
+
+      <Card>
+        <Row style={{ justifyContent: "space-between" }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>App lock</Text>
+            <Muted style={{ marginTop: 3 }}>Ask for your fingerprint, face or phone PIN when the app opens and when you come back to it.</Muted>
+          </View>
+          <Switch value={lock.enabled} onValueChange={toggleLock} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+        </Row>
+        {lockNote ? <View style={{ marginTop: 10 }}>{lockNote.ok ? <Muted style={{ color: colors.green }}>{lockNote.text}</Muted> : <ErrorNote>{lockNote.text}</ErrorNote>}</View> : null}
       </Card>
 
       {liveNotificationAvailable() || livePreviewAvailable() ? (

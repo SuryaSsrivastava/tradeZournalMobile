@@ -4,16 +4,18 @@ import * as SecureStore from "expo-secure-store"
 import * as WebBrowser from "expo-web-browser"
 import { Platform } from "react-native"
 import { DEFAULT_API_URL } from "./config"
+import { markOffline } from "./net"
 
 // ---- types: the parts of the EdgeLabHub API this app reads --------------------------------------------------------------------------------------------------------------------
 
 export type User = { id: number; email: string; name: string; timezone: string; plan: string; is_admin: boolean; plan_expires_at?: string | null; has_password?: boolean; has_google?: boolean; created_at?: string | null }
-export type PlanUsage = { plan: string; lapsed: boolean; limits: Record<string, number | null>; used: Record<string, number>; resets_on: string | null; ends_on: string | null }
+export type PlanUsage = { credits?: Record<string, number>; plan: string; lapsed: boolean; limits: Record<string, number | null>; used: Record<string, number>; resets_on: string | null; ends_on: string | null }
 export type Notice = { id: number; kind: string; title: string; body: string; link: string; read: boolean; created_at: string }
 export type Account = {
   goals?: Partial<Goals>
   id: number; name: string; kind: string; broker?: string | null; server?: string | null; is_prop: boolean; status: "active" | "connecting" | "error" | "paused"
   hint: string; prop: { balance: number; equity: number; today: number } | null
+  starting_balance?: number; rules?: PropRules; last_sync_at?: string | null; last_error?: string; trades_synced?: number; currency?: string | null
 }
 export type LivePosition = { id: string; symbol: string; side: "Long" | "Short"; volume: number | null; open_price: number | null; price: number | null; stop: number | null; target: number | null; profit: number; swap: number | null; opened_at: string | null }
 export type LiveView = { state: "starting" | "live" | "error" | "unsupported" | "ended"; message?: string; positions?: LivePosition[]; balance?: number | null; equity?: number | null; currency?: string; floating?: number; at?: string }
@@ -23,6 +25,17 @@ export type ForwardTrade = { id: number; side: "long" | "short"; entry: number; 
 export type ForwardFull = Forward & { result: { closed: ForwardTrade[]; open: ForwardTrade[]; stats: ForwardStats } | null }
 export type EconEvent = { id: string; series: string; time: string; country: string; currency: string; name: string; importance: "high" | "medium" | "low"; actual: string; forecast: string; previous: string; above_forecast: boolean | null }
 export type NewsAlerts = { enabled: boolean; currencies: string[]; lead_minutes: number; events: string[] }
+export type PropRules = { daily_loss_pct?: number; max_dd_pct?: number; trailing?: boolean; target_pct?: number; min_days?: number }
+export type NewAccount = { name: string; kind: "manual" | "metaapi"; starting_balance: number; is_prop: boolean; rules?: PropRules; broker?: "mt5"; login?: string; mt_password?: string; server?: string; platform?: "mt4" | "mt5" }
+export type PlanInfo = { label: string; tagline: string; strategies: number | null; explanations: number | null; coach_reviews: number | null; forward_tests: number | null; replay_sessions: number | null; ai_requests: number | null; connected_accounts: number | null; replay_screenshots: boolean; live_positions: boolean; premium_models: boolean; support: string }
+export type Pricing = { currency: "USD" | "INR"; tiers: Record<string, { monthly: number; yearly: number; list: number }>; offer: { label: string; ends_at: string | null } | null }
+export type SubscriptionInfo = { id: number; plan: string; period: "monthly" | "yearly"; currency: string; amount: number; status: string; next_charge_at: string | null; access_until: string | null; cancel_requested: boolean; failed_count: number; last_error: string; last_payment_at: string | null }
+export type AddonPack = { id: string; label: string; price: number; ai_requests: number; explanations: number; connected_accounts: number; coach_reviews: number }
+export type AddonList = { currency: "USD" | "INR"; packs: AddonPack[]; valid_days: number; paid_only: boolean }
+export type CreditRow = { left: number; expires_at: string | null }
+export type PlanCoupon = { ok: boolean; error?: string; label?: string; code?: string; currency?: "USD" | "INR"; tiers?: Record<string, { monthly: number; yearly: number; billed_yearly: number }> }
+export type AddonOrder = { id: number; status: string; label: string }
+export type Partner = { id: string; name: string; kind: string; perk: string; blurb: string }
 export type BrokerLink = { id: number; broker: "dhan" | "fyers" | "angel"; label: string; name: string; status: "active" | "error"; error: string; alias: string; balance: number | null; needs_login?: boolean }
 export type Holding = { symbol: string; name: string; exchange: string; qty: number; avg: number; ltp: number | null; invested: number; value: number | null; pnl: number | null; pnl_pct: number | null; day_pnl: number | null; link_id: number; broker: string; broker_label: string; account: string }
 export type Portfolio = { holdings: Holding[]; problems: { link_id: number; name: string; error: string }[]; totals: { invested: number; value: number; pnl: number; pnl_pct: number | null; day_pnl: number; day_pct: number | null; unpriced: number; count: number }; cached_at?: number }
@@ -50,7 +63,9 @@ export type Goals = { max_trades_day: number | null; max_daily_loss: number | nu
 export type Rules = Goals & { checklist: string[] }
 export type Meter = { key: string; label: string; kind: "limit" | "goal"; limit: number; value: number; state: "ok" | "warn" | "breached" | "achieved"; text: string; period: "day" | "month" | "total" }
 export type DisciplineScope = { scope: string; account_id: number | null; meters: Meter[] }
-export type Prefs = { push: boolean; promos?: boolean; [k: string]: unknown }
+export type Prefs = { push: boolean; promos?: boolean; digest?: boolean; daily_recap?: boolean; monthly_report?: boolean; [k: string]: unknown }
+export type PriceAlert = { id: number; symbol: string; name: string; direction: "above" | "below"; price: number; created_at: string; triggered_at: string | null; triggered_price: number | null }
+export type MarketQuote = { symbol: string; name: string; category: string; price: number | null; change_pct: number | null }
 
 // ---- the connection -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -102,8 +117,10 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
   try {
     res = await fetch(`${server}${path}`, { ...init, headers })
   } catch {
+    markOffline(true)
     throw new ApiError(0, "Can't reach EdgeLabHub. Check your connection.")
   }
+  markOffline(false)  // any answer at all means we are connected
   if (res.status === 401 && auth) { onUnauthorized(); throw new ApiError(401, "Your session ended. Sign in again.") }
   if (!res.ok) {
     let detail = `Something went wrong (${res.status}).`
@@ -167,9 +184,14 @@ export const api = {
   unregisterDevice: (tokenValue: string) => request<void>(`/notifications/devices?token=${encodeURIComponent(tokenValue)}`, { method: "DELETE" }),
   testPush: () => request<void>("/notifications/devices/test", { method: "POST" }),
   accounts: () => request<{ accounts: Account[] }>("/accounts"),
+  updateTradingAccount: (id: number, b: { name?: string; is_prop?: boolean; starting_balance?: number; rules?: PropRules; paused?: boolean }) => request<Account>(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  removeTradingAccount: (id: number, deleteTrades: boolean) => request<void>(`/accounts/${id}?delete_trades=${deleteTrades}`, { method: "DELETE" }),
+  addAccount: (b: NewAccount) => request<Account>("/accounts", { method: "POST", body: JSON.stringify(b) }),
   closePosition: (accountId: number, positionId: string) => request<{ closed: boolean }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/close`, { method: "POST" }),
   accountLive: (id: number) => request<LiveView>(`/accounts/${id}/live`),
   forwardTests: () => request<Forward[]>("/forward"),
+  setForwardStatus: (id: number, status: "active" | "stopped") => request<Forward>(`/forward/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  deleteForward: (id: number) => request<void>(`/forward/${id}`, { method: "DELETE" }),
   forwardTest: (id: number) => request<ForwardFull>(`/forward/${id}`),
   calendar: (importance: string, countries: string[]) =>
     request<{ events: EconEvent[]; available: boolean }>(`/market/economic-calendar?importance=${importance}&countries=${encodeURIComponent(countries.join(","))}&back=1&ahead=7`),
@@ -184,6 +206,7 @@ export const api = {
   journalTrades: (limit = 300) => request<JournalTrade[]>(`/journal/trades?limit=${limit}`),
   addJournalTrade: (b: NewTrade) => request<JournalTrade>("/journal/trades", { method: "POST", body: JSON.stringify(b) }),
   editJournalTrade: (id: number, b: TradeEdit) => request<JournalTrade>(`/journal/trades/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  addTradeShot: (id: number, b: { image: string; thumb: string; caption: string }) => request<ManualShot>(`/journal/trades/${id}/shots`, { method: "POST", body: JSON.stringify(b) }),
   deleteJournalTrade: (id: number) => request<void>(`/journal/trades/${id}`, { method: "DELETE" }),
   screen: (market: Market, spec: ScreenSpec, offset = 0, page = 50) => request<ScreenResult>("/screener/query", { method: "POST", body: JSON.stringify({ market, spec, offset, page }) }),
   asset: (market: string, symbol: string) => request<AssetDetail>(`/screener/${market}/${encodeURIComponent(symbol)}`),
@@ -198,6 +221,24 @@ export const api = {
   tradeShotImage: (id: number) => request<{ image: string }>(`/journal/shots/${id}/image`),
   journalTradeShots: (id: number) => request<ReplayShot[]>(`/journal/trades/${id}/screenshots`),
   replayShotImage: (id: number) => request<{ image: string }>(`/replay/screenshots/${id}/image`),
+  plans: () => request<Record<string, PlanInfo>>("/plans", {}, false),
+  pricing: () => request<Pricing>("/plans/pricing", {}, false),
+  subscription: () => request<{ subscription: SubscriptionInfo | null }>("/plans/subscription"),
+  subscribe: (plan: string, period: "monthly" | "yearly", coupon = "") => request<{ subscription: SubscriptionInfo; checkout: { subscription_session_id: string; mode: string } }>("/plans/subscribe", { method: "POST", body: JSON.stringify({ plan, period, coupon }) }),
+  refreshSubscription: () => request<{ subscription: SubscriptionInfo | null }>("/plans/subscription/refresh", { method: "POST" }),
+  cancelSubscription: () => request<{ subscription: SubscriptionInfo | null }>("/plans/subscription/cancel", { method: "POST" }),
+  addons: () => request<AddonList>("/plans/addons", {}, false),
+  addonCredits: () => request<{ credits: Record<string, CreditRow> }>("/plans/addons/credits"),
+  checkPlanCoupon: (code: string) => request<PlanCoupon>("/plans/coupons/plans", { method: "POST", body: JSON.stringify({ code }) }),
+  buyAddon: (packId: string) => request<{ status: "paid" | "pending"; checkout: { payment_session_id: string; mode: string } | null; order: AddonOrder }>("/plans/addons/checkout", { method: "POST", body: JSON.stringify({ pack_id: packId }) }),
+  refreshOrder: (id: number) => request<AddonOrder>(`/plans/addons/orders/${id}/refresh`, { method: "POST" }),
+  partners: () => request<{ partners: Partner[] }>("/public/partners", {}, false),
+  partnerLink: (id: string) => request<{ url: string }>(`/partners/${encodeURIComponent(id)}/link`, { method: "POST" }),
+  deleteAccount: (confirmEmail: string) => request<void>("/auth/me", { method: "DELETE", body: JSON.stringify({ confirm_email: confirmEmail.trim() }) }),
+  priceAlerts: () => request<{ items: PriceAlert[]; max_open: number }>("/notifications/price-alerts"),
+  addPriceAlert: (b: { symbol: string; direction: "above" | "below"; price: number }) => request<PriceAlert>("/notifications/price-alerts", { method: "POST", body: JSON.stringify(b) }),
+  removePriceAlert: (id: number) => request<void>(`/notifications/price-alerts/${id}`, { method: "DELETE" }),
+  quotes: () => request<{ symbols: MarketQuote[] }>("/market/symbols?provider=forex"),
   newsAlerts: () => request<NewsAlerts>("/notifications/news-alerts"),
   saveNewsAlerts: (b: NewsAlerts) => request<NewsAlerts>("/notifications/news-alerts", { method: "PUT", body: JSON.stringify(b) }),
 }

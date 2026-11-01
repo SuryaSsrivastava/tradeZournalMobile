@@ -8,6 +8,7 @@ import { CountUp } from "../src/fx"
 import { ago, money, price } from "../src/format"
 import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
+import { PlanNote } from "../src/upgrade"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../src/ui"
 
 /** Live open positions of a connected MetaTrader account, refreshed every few seconds while this screen is open. Admins can close a trade here, as on the website (the server refuses anyone else). */
@@ -55,7 +56,7 @@ export default function Positions() {
 
       {!accounts.loaded ? <Loading /> : usable.length === 0 ? <Empty title="No MetaTrader account" text="Connect one on the website to watch your open positions here." /> : (
         <>
-          {live.error ? <ErrorNote>{live.error}</ErrorNote> : null}
+          {live.error ? <PlanNote message={live.error} /> : null}
           {!live.loaded ? <Loading /> : v ? (
             <>
               {v.state === "starting" ? <Card><Muted>Connecting to your broker. The first look can take up to a minute.</Muted></Card> : null}

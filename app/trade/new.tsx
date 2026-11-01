@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router"
 import { useState } from "react"
 import { View } from "react-native"
-import { api } from "../../src/api"
+import { api, type NewTrade } from "../../src/api"
+import { isOfflineError, enqueue } from "../../src/outbox"
+import { showToast } from "../../src/toast"
 import { splitLabels } from "../../src/journal"
 import { Button, ErrorNote, Field, Label, Pill, Row, Screen } from "../../src/ui"
 
@@ -22,7 +24,14 @@ export default function NewTrade() {
     if (![entry, exit, qty, risk].every((n) => n > 0)) return setError("Entry, exit, quantity and risk must each be a number above zero.")
     setBusy(true); setError(null)
     try {
-      await api.addJournalTrade({ symbol: f.symbol, side, entry, exit, qty, risk, setup: f.setup.trim(), rating, note: f.note.trim(), emotions: splitLabels(f.emotions), tags: splitLabels(f.tags), followed_plan: plan })
+      const trade: NewTrade = { symbol: f.symbol, side, entry, exit, qty, risk, setup: f.setup.trim(), rating, note: f.note.trim(), emotions: splitLabels(f.emotions), tags: splitLabels(f.tags), followed_plan: plan }
+      try {
+        await api.addJournalTrade(trade)
+      } catch (e) {
+        if (!isOfflineError(e)) throw e
+        await enqueue({ type: "addTrade", body: trade })  // no connection: kept on the phone and uploaded later
+        showToast("Saved on this phone. It uploads when you are back online.")
+      }
       router.back()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save the trade.")

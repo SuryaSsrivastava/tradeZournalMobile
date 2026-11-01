@@ -1,7 +1,10 @@
 import { useState } from "react"
 import { Alert, Text, View } from "react-native"
+import { useRouter } from "expo-router"
 import { api } from "../src/api"
 import { useAuth } from "../src/auth"
+import { CAN_SELL } from "../src/config"
+import { CheckMark } from "../src/delight"
 import { Bar, Rise } from "../src/fx"
 import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
@@ -11,10 +14,11 @@ const NAMES: Record<string, string> = { strategies: "Saved strategies", explanat
 const date = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : "")
 const initials = (s: string) => s.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?"
 type Note = { ok: boolean; text: string } | null
-const Say = ({ n }: { n: Note }) => (n ? <View style={{ marginBottom: 10 }}>{n.ok ? <Text style={{ color: colors.green, fontSize: 13, fontWeight: "700" }}>{n.text}</Text> : <ErrorNote>{n.text}</ErrorNote>}</View> : null)
+const Say = ({ n }: { n: Note }) => (n ? <View style={{ marginBottom: 10 }}>{n.ok ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><CheckMark size={20} /><Text style={{ color: colors.green, fontSize: 13, fontWeight: "700" }}>{n.text}</Text></View> : <ErrorNote>{n.text}</ErrorNote>}</View> : null)
 
 export default function Profile() {
   const { user, update, signOut } = useAuth()
+  const router = useRouter()
   const usage = useLoad(() => api.planUsage())
   const [name, setName] = useState(user?.name ?? "")
   const [zone, setZone] = useState(user?.timezone ?? "")
@@ -100,12 +104,50 @@ export default function Profile() {
             </View>
           </>
         ) : null}
+        {CAN_SELL ? <View style={{ marginTop: 14 }}><Button tone="ghost" onPress={() => router.push("/plans" as never)}>{user?.plan === "starter" ? "See plans and upgrade" : "Manage my plan"}</Button></View> : null}
       </Card>
 
       <Password hasPassword={user?.has_password !== false} />
 
       <Button tone="danger" onPress={out}>Sign out</Button>
+      <DeleteAccount email={user?.email ?? ""} isAdmin={!!user?.is_admin} onDeleted={() => void signOut()} />
     </Screen>
+  )
+}
+
+/** Deleting the account from inside the app (Google Play and the App Store require it). The member types their email, then confirms once more. */
+function DeleteAccount({ email, isAdmin, onDeleted }: { email: string; isAdmin: boolean; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<Note>(null)
+  const matches = typed.trim().toLowerCase() === email.toLowerCase()
+  const go = () => Alert.alert("Delete your account for good?", "Your journal, trades, screenshots, strategies and settings will be erased. This cannot be undone.", [
+    { text: "Keep my account", style: "cancel" },
+    {
+      text: "Delete everything", style: "destructive", onPress: async () => {
+        setBusy(true); setNote(null)
+        try { await api.deleteAccount(typed); onDeleted() } catch (e) { setNote({ ok: false, text: e instanceof Error ? e.message : "Could not delete the account." }); setBusy(false) }
+      },
+    },
+  ])
+  return (
+    <View style={{ marginTop: 28 }}>
+      {!open ? <Text onPress={() => setOpen(true)} style={{ color: colors.muted, fontSize: 13, textAlign: "center", textDecorationLine: "underline" }}>Delete my account</Text> : (
+        <Card>
+          <Label>Delete account</Label>
+          {isAdmin ? <Muted>An admin account is removed by another admin. Ask one of them to delete it.</Muted> : (
+            <>
+              <Muted style={{ marginBottom: 10 }}>This erases your journal, trades, screenshots, strategies, alerts and settings, and signs you out everywhere. Active subscriptions are not refunded. Type your email ({email}) to continue.</Muted>
+              <Say n={note} />
+              <Field label="Your email" value={typed} onChangeText={setTyped} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" />
+              <Button tone="danger" onPress={go} busy={busy} disabled={!matches}>Delete my account</Button>
+            </>
+          )}
+          <View style={{ marginTop: 8 }}><Button tone="ghost" onPress={() => { setOpen(false); setTyped(""); setNote(null) }}>Cancel</Button></View>
+        </Card>
+      )}
+    </View>
   )
 }
 

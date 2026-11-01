@@ -1,3 +1,4 @@
+import { Flash } from "./delight"
 import { useRouter } from "expo-router"
 import { useEffect, useState } from "react"
 import { Alert, Pressable, Text, View } from "react-native"
@@ -51,7 +52,7 @@ function AccountLive({ account }: { account: Account }) {
       <Pressable onPress={() => router.push("/positions")}>
         <Row style={{ justifyContent: "space-between" }}>
           <Row><Pulse size={6} /><Text style={{ color: colors.text, fontSize: 14, fontWeight: "800", marginLeft: 4 }}>Live trades</Text><Muted style={{ marginLeft: 8 }}>{account.name}</Muted></Row>
-          <Text style={{ color: tone(floating), fontSize: 15, fontWeight: "800" }}>{money(floating, v.currency, true)}</Text>
+          <Flash value={floating}><Text style={{ color: tone(floating), fontSize: 15, fontWeight: "800" }}>{money(floating, v.currency, true)}</Text></Flash>
         </Row>
       </Pressable>
       {open.map((p, i) => {
@@ -66,7 +67,7 @@ function AccountLive({ account }: { account: Account }) {
                 </View>
               </Row>
               <Row style={{ gap: 10 }}>
-                <CountUp value={p.profit} format={(n) => money(n, v.currency, true)} ms={600} style={{ color: tone(p.profit), fontSize: 16, fontWeight: "800" }} />
+                <Flash value={p.profit}><CountUp value={p.profit} format={(n) => money(n, v.currency, true)} ms={600} style={{ color: tone(p.profit), fontSize: 16, fontWeight: "800" }} /></Flash>
                 {canClose ? <CloseX onPress={() => close(p)} busy={closing === p.id} disabled={closing !== null} /> : null}
               </Row>
             </Row>

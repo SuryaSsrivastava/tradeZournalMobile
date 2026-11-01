@@ -6,6 +6,7 @@ import { ago } from "../src/format"
 import { useLoad } from "../src/hooks"
 import { routeFor } from "../src/push"
 import { colors } from "../src/theme"
+import { Rise } from "../src/fx"
 import { Card, Empty, ErrorNote, Loading, Muted, Row, Screen, Title } from "../src/ui"
 
 const KIND: Record<string, { icon: React.ComponentProps<typeof Ionicons>["name"]; color: string }> = {
@@ -17,7 +18,7 @@ const KIND: Record<string, { icon: React.ComponentProps<typeof Ionicons>["name"]
 
 export default function Alerts() {
   const router = useRouter()
-  const n = useLoad(() => api.notices(50), { every: 30_000 })
+  const n = useLoad(() => api.notices(50), { every: 30_000, cache: "notices50" })
   const items = n.data?.items ?? []
 
   const open = async (x: Notice) => {
@@ -40,10 +41,10 @@ export default function Alerts() {
           <Pressable onPress={clear} hitSlop={8} style={{ marginLeft: 18 }}><Text style={{ color: colors.muted, fontWeight: "600", fontSize: 13 }}>Clear</Text></Pressable>
         </Row>
       ) : null}
-      {!n.loaded ? <Loading /> : items.length === 0 ? <Empty title="No alerts yet" text="Trades your forward tests open, upcoming economic releases and rule warnings show up here, and on your lock screen." /> : items.map((x) => {
+      {!n.loaded ? <Loading /> : items.length === 0 ? <Empty title="No alerts yet" text="Trades your forward tests open, upcoming economic releases and rule warnings show up here, and on your lock screen." /> : items.map((x, idx) => {
         const k = KIND[x.kind] ?? { icon: "notifications" as const, color: colors.muted }
         return (
-          <Pressable key={x.id} onPress={() => open(x)}>
+          <Rise key={x.id} delay={Math.min(idx, 8) * 55}><Pressable onPress={() => open(x)}>
             <Card style={{ opacity: x.read ? 0.7 : 1, borderColor: x.read ? colors.border : `${k.color}66` }}>
               <Row style={{ alignItems: "flex-start" }}>
                 <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: `${k.color}22`, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
@@ -59,7 +60,7 @@ export default function Alerts() {
                 </View>
               </Row>
             </Card>
-          </Pressable>
+          </Pressable></Rise>
         )
       })}
     </Screen>
