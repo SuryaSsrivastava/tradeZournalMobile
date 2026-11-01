@@ -99,7 +99,7 @@ export function Flash({ value, children, style }: { value: number; children: Rea
 
 // ---- badges just earned -------------------------------------------------------------------------------------------------------------------------------------------------
 
-const SEEN = "edgelab.badges.seen"
+const SEEN = "tz.badges.seen"
 
 /** The badges earned since the app last looked (the very first look only remembers what is already earned, so nobody gets confetti for old trades). */
 export function useNewBadges(trades: JournalTrade[]): { fresh: Badge[]; done: () => void } {

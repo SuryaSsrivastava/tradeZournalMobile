@@ -6,7 +6,7 @@ import { Platform } from "react-native"
 import { DEFAULT_API_URL } from "./config"
 import { markOffline } from "./net"
 
-// ---- types: the parts of the EdgeLabHub API this app reads --------------------------------------------------------------------------------------------------------------------
+// ---- types: the parts of the TradeZournal API this app reads --------------------------------------------------------------------------------------------------------------------
 
 export type User = { id: number; email: string; name: string; timezone: string; plan: string; is_admin: boolean; plan_expires_at?: string | null; has_password?: boolean; has_google?: boolean; created_at?: string | null }
 export type PlanUsage = { credits?: Record<string, number>; plan: string; lapsed: boolean; limits: Record<string, number | null>; used: Record<string, number>; resets_on: string | null; ends_on: string | null }
@@ -69,8 +69,8 @@ export type MarketQuote = { symbol: string; name: string; category: string; pric
 
 // ---- the connection -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-const TOKEN_KEY = "edgelab.token"
-const SERVER_KEY = "edgelab.server"
+const TOKEN_KEY = "tz.token"
+const SERVER_KEY = "tz.server"
 
 let token: string | null = null
 let server: string = DEFAULT_API_URL
@@ -78,7 +78,7 @@ let onUnauthorized: () => void = () => {}
 
 export const setUnauthorizedHandler = (fn: () => void) => { onUnauthorized = fn }
 export const apiServer = () => server
-/** The address EdgeLabHub itself answers on (no path), so a link can be checked to be ours before the sign-in token is sent along with it. */
+/** The address TradeZournal itself answers on (no path), so a link can be checked to be ours before the sign-in token is sent along with it. */
 export const apiOrigin = () => { try { return new URL(server).origin } catch { return "" } }
 export const authHeader = (): Record<string, string> => (token ? { Authorization: `Bearer ${token}` } : {})
 
@@ -110,7 +110,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json", "X-EdgeLab-Client": "mobile", ...(init.headers as Record<string, string> | undefined) }
+  const headers: Record<string, string> = { Accept: "application/json", "x-tz-Client": "mobile", ...(init.headers as Record<string, string> | undefined) }
   if (init.body) headers["Content-Type"] = "application/json"
   if (auth && token) headers.Authorization = `Bearer ${token}`
   let res: Response
@@ -118,7 +118,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
     res = await fetch(`${server}${path}`, { ...init, headers })
   } catch {
     markOffline(true)
-    throw new ApiError(0, "Can't reach EdgeLabHub. Check your connection.")
+    throw new ApiError(0, "Can't reach TradeZournal. Check your connection.")
   }
   markOffline(false)  // any answer at all means we are connected
   if (res.status === 401 && auth) { onUnauthorized(); throw new ApiError(401, "Your session ended. Sign in again.") }
@@ -153,14 +153,14 @@ const GOOGLE_ERRORS: Record<string, string> = {
 
 /**
  * Sign in with Google in the phone's secure browser sheet. The app keeps a secret and gives the server only its hash; the server answers with a one-time code in the app's own address
- * (edgelabhub://auth), and the code plus the secret are traded for a normal session. Returns null when the person closes the sheet.
+ * (tradezournal://auth), and the code plus the secret are traded for a normal session. Returns null when the person closes the sheet.
  */
 export async function googleSignIn(): Promise<User | null> {
   const verifier = b64url(btoa(String.fromCharCode(...Crypto.getRandomBytes(32))))  // 43 characters
   const challenge = b64url(await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, { encoding: Crypto.CryptoEncoding.BASE64 }))
   // Android comes back through the site's web address, which the app has proved it owns (so no "open the external app?" question); iPhone through the app's own address
   const viaLink = Platform.OS === "android" && apiOrigin().startsWith("https://")
-  const back = viaLink ? `${apiOrigin()}/auth/mobile` : "edgelabhub://auth"
+  const back = viaLink ? `${apiOrigin()}/auth/mobile` : "tradezournal://auth"
   const result = await WebBrowser.openAuthSessionAsync(`${server}/auth/google/login?mobile_challenge=${challenge}${viaLink ? "&mobile_return=link" : ""}`, back)
   if (result.type !== "success") return null
   const q = Linking.parse(result.url).queryParams ?? {}

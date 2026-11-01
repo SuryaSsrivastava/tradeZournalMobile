@@ -19,10 +19,10 @@ if (process.env.EXPO_PUBLIC_LIVE_NOTIFICATION === "1" && Platform.OS === "androi
 }
 
 const CHANNEL = "live-trades"
-const ENABLED = "edgelab.livenotif"
-const ACCOUNTS = "edgelab.livenotif.accounts"
-const CAN_CLOSE = "edgelab.livenotif.canclose"
-const HIDDEN = "edgelab.livenotif.hidden"  // the member pressed the cross: stay hidden until the open trades are over
+const ENABLED = "tz.livenotif"
+const ACCOUNTS = "tz.livenotif.accounts"
+const CAN_CLOSE = "tz.livenotif.canclose"
+const HIDDEN = "tz.livenotif.hidden"  // the member pressed the cross: stay hidden until the open trades are over
 const POLL_MS = 10_000
 const QUIET_POLLS = 3  // this many looks in a row with nothing open ends the service
 const FAILED_POLLS = 8  // and this many failures in a row (no connection for over a minute)
@@ -41,7 +41,7 @@ export async function setLiveNotificationEnabled(on: boolean): Promise<{ ok: boo
   if (!N) return { ok: false, message: "This needs the installed Android app. It is not available in Expo Go." }
   if (on) {
     const perm = await N.default.requestPermission()
-    if (perm.authorizationStatus < 1) return { ok: false, message: "Notifications are switched off for EdgeLabHub in your phone's settings." }
+    if (perm.authorizationStatus < 1) return { ok: false, message: "Notifications are switched off for TradeZournal in your phone's settings." }
   } else {
     await stopLiveNotification()
   }

@@ -49,7 +49,7 @@ export async function registerForPush(): Promise<{ ok: boolean; message: string 
   } catch { /* the notification still arrives, without buttons */ }
   let { status } = await Notifications.getPermissionsAsync()
   if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status
-  if (status !== "granted") return { ok: false, message: "Notifications are switched off for EdgeLabHub in your phone's settings." }
+  if (status !== "granted") return { ok: false, message: "Notifications are switched off for TradeZournal in your phone's settings." }
   const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId || Constants.easConfig?.projectId
   if (!projectId) return { ok: false, message: "This build has no Expo project id, so it cannot receive push notifications. See the README (eas init)." }
   try {

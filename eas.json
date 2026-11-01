@@ -11,7 +11,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1"
       }
     },
     "preview": {
@@ -20,13 +20,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1",
         "EXPO_PUBLIC_STORE_BUILD": "1"
       }
     },
@@ -36,7 +36,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1",
         "LIVE_NOTIFICATION": "1",
         "EXPO_PUBLIC_LIVE_NOTIFICATION": "1"
       }
@@ -44,7 +44,7 @@
     "development-live": {
       "extends": "development",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1",
         "LIVE_NOTIFICATION": "1",
         "EXPO_PUBLIC_LIVE_NOTIFICATION": "1"
       }
@@ -56,7 +56,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1"
       }
     },
     "widget": {
@@ -65,7 +65,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://edgelabhub.com/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1",
         "WIDGET": "1",
         "EXPO_PUBLIC_WIDGET": "1"
       }

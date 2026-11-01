@@ -11,7 +11,7 @@ import { Brand, Button, Muted } from "./ui"
  * App lock: with it on, the app asks for the fingerprint, face or phone PIN when it opens and again when it comes back after more than a short while in the background.
  * It is on by default wherever the phone has a screen lock set up (like banking apps); turning it off in Settings is remembered. The choice is kept on the phone (secure storage), per phone.
  */
-const KEY = "edgelab.lock"
+const KEY = "tz.lock"
 const GRACE_MS = 30_000  // leaving the app for less than this (answering a message) does not lock it
 
 type LockState = { enabled: boolean; supported: boolean; setEnabled: (on: boolean) => Promise<{ ok: boolean; message: string }> }
@@ -64,7 +64,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
     if (asking.current) return
     asking.current = true
     try {
-      const r = await ask("Unlock EdgeLabHub")
+      const r = await ask("Unlock TradeZournal")
       if (r.success) setLocked(false)
     } catch { /* stays locked */ } finally {
       setTimeout(() => { asking.current = false }, 600)
@@ -102,7 +102,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", padding: 32, zIndex: 100 }}>
       <Ambient />
       <Glow><Brand size={72} mark /></Glow>
-      <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800", marginTop: 22 }}>EdgeLabHub is locked</Text>
+      <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800", marginTop: 22 }}>TradeZournal is locked</Text>
       <Muted style={{ marginTop: 6, marginBottom: 26, textAlign: "center" }}>Use your fingerprint, face or phone PIN to continue.</Muted>
       <View style={{ width: "100%", maxWidth: 320 }}><Button onPress={onUnlock}>Unlock</Button></View>
       <Text onPress={() => void signOut()} style={{ color: colors.muted, fontSize: 13, marginTop: 22, textDecorationLine: "underline" }}>Sign out instead</Text>

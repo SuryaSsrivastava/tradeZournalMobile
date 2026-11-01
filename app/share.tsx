@@ -15,7 +15,7 @@ import { Button, Card, Empty, ErrorNote, Field, Label, Loading, Muted, Row, Scre
 
 const MAX_CHARS = 2_800_000  // the server keeps a picture up to 3 million characters as text
 
-/** A picture shared to EdgeLabHub (from the gallery, TradingView, a chat): choose the trade it belongs to and it is added as a screenshot, shrunk to a sensible size first. */
+/** A picture shared to TradeZournal (from the gallery, TradingView, a chat): choose the trade it belongs to and it is added as a screenshot, shrunk to a sensible size first. */
 export default function ShareToTrade() {
   const router = useRouter()
   const files = getShared()
@@ -60,7 +60,7 @@ export default function ShareToTrade() {
   if (done !== null) return (
     <Screen padTop={false}><View style={{ alignItems: "center", paddingVertical: 70 }}><Pop><CheckMark size={76} /></Pop><Text style={{ color: colors.text, fontSize: 20, fontWeight: "800", marginTop: 18 }}>Screenshot added</Text><Muted style={{ marginTop: 6 }}>Opening the trade...</Muted></View></Screen>
   )
-  if (files.length === 0) return <Screen padTop={false}><Empty title="Nothing was shared" text="Share a picture to EdgeLabHub from your gallery or another app, and it opens here." /><Button onPress={close}>Close</Button></Screen>
+  if (files.length === 0) return <Screen padTop={false}><Empty title="Nothing was shared" text="Share a picture to TradeZournal from your gallery or another app, and it opens here." /><Button onPress={close}>Close</Button></Screen>
 
   return (
     <Screen padTop={false}>

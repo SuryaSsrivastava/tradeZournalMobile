@@ -23,7 +23,7 @@ export async function startLivePreview(): Promise<{ ok: boolean; message: string
   if (!livePreviewAvailable()) return { ok: false, message: "The preview is for Android." }
   let { status } = await Notifications.getPermissionsAsync()
   if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status
-  if (status !== "granted") return { ok: false, message: "Notifications are switched off for EdgeLabHub in your phone's settings." }
+  if (status !== "granted") return { ok: false, message: "Notifications are switched off for TradeZournal in your phone's settings." }
   await stopLivePreview()
   // the buttons under the notification: a cross that hides it, and one that opens the app to close the trade (the app asks to confirm before closing anything)
   await Notifications.setNotificationCategoryAsync("live-trade", [

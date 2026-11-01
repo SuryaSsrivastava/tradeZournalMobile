@@ -30,13 +30,13 @@ function Today({ d }: { d: Data }) {
   const c = d && d.today < 0 ? RED : GREEN
   return (
     <FlexWidget clickAction="OPEN_APP" style={{ height: "match_parent", width: "match_parent", backgroundColor: BG, borderRadius: 22, padding: 14, flexDirection: "column", justifyContent: "space-between" }}>
-      <TextWidget text="EDGELABHUB · TODAY" style={{ fontSize: 10, color: MUTED, fontWeight: "bold", letterSpacing: 1 }} />
+      <TextWidget text="TRADEZOURNAL · TODAY" style={{ fontSize: 10, color: MUTED, fontWeight: "bold", letterSpacing: 1 }} />
       {d ? (
         <FlexWidget style={{ flexDirection: "column" }}>
           <TextWidget text={money(d.today, "USD", true)} style={{ fontSize: 30, color: c, fontWeight: "bold" }} />
           <TextWidget text={d.count === 0 ? "No trades yet today" : `${d.count} trade${d.count === 1 ? "" : "s"} today`} style={{ fontSize: 12, color: MUTED }} />
         </FlexWidget>
-      ) : <TextWidget text="Open EdgeLabHub to sign in" style={{ fontSize: 13, color: MUTED }} />}
+      ) : <TextWidget text="Open TradeZournal to sign in" style={{ fontSize: 13, color: MUTED }} />}
       {d && d.open > 0 ? (
         <TextWidget text={`● ${d.open} open · ${money(d.floating, d.currency === "USD" ? "USD" : d.currency, true)}`} style={{ fontSize: 12, color: d.floating >= 0 ? GREEN : RED, fontWeight: "bold" }} />
       ) : <TextWidget text={d ? "No open trades" : ""} style={{ fontSize: 12, color: MUTED }} />}

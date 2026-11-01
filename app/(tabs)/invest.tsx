@@ -246,7 +246,7 @@ function Orders() {
   const o = useLoad(() => api.investOrders())
   if (!o.loaded) return <Loading />
   const list = o.data?.orders ?? []
-  if (list.length === 0) return <Empty title="No orders" text="Orders placed through EdgeLabHub are listed here." />
+  if (list.length === 0) return <Empty title="No orders" text="Orders placed through TradeZournal are listed here." />
   return <>{list.map((x, i) => (
     <Card key={x.id} delay={Math.min(i, 8) * 50}>
       <Row style={{ justifyContent: "space-between" }}>

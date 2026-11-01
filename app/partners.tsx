@@ -10,7 +10,7 @@ import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Row, Screen } fr
 
 const KINDS: [string, string][] = [["prop", "Prop firms"], ["broker", "Brokers"], ["tool", "Tools"]]
 
-/** Prop firms, brokers and tools EdgeLabHub recommends. EdgeLabHub may earn a commission from them; the member pays nothing extra. A link is opened through the server so the visit is remembered against the member. */
+/** Prop firms, brokers and tools TradeZournal recommends. TradeZournal may earn a commission from them; the member pays nothing extra. A link is opened through the server so the visit is remembered against the member. */
 export default function Partners() {
   const list = useLoad(() => api.partners(), { cache: "partners" })
   const [busy, setBusy] = useState<string | null>(null)
@@ -48,7 +48,7 @@ export default function Partners() {
       ))}
       <Row style={{ alignItems: "flex-start", marginTop: 4 }}>
         <Ionicons name="information-circle-outline" size={16} color={colors.muted} style={{ marginTop: 1 }} />
-        <Text style={{ color: colors.muted, fontSize: 11.5, lineHeight: 16, marginLeft: 8, flex: 1 }}>EdgeLabHub may earn a commission when you sign up through these links. It costs you nothing extra and does not change our view of them. They are not recommendations to trade. Trading is risky and you can lose money, including all you put in. Check each firm's own terms.</Text>
+        <Text style={{ color: colors.muted, fontSize: 11.5, lineHeight: 16, marginLeft: 8, flex: 1 }}>TradeZournal may earn a commission when you sign up through these links. It costs you nothing extra and does not change our view of them. They are not recommendations to trade. Trading is risky and you can lose money, including all you put in. Check each firm's own terms.</Text>
       </Row>
     </Screen>
   )

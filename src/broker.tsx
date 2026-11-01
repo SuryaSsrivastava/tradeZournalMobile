@@ -12,12 +12,12 @@ const RESULT = /\/portfolio\?(dhan|fyers)=(connected|failed)/
 
 /** Turns the address the server gives ("/api/v1/..." on our own site, or a full broker address) into one a web view can open. */
 const absolute = (url: string) => (url.startsWith("/") ? `${apiOrigin()}${url}` : url)
-/** The sign-in token goes only to EdgeLabHub's own server, never to a broker's page. */
+/** The sign-in token goes only to TradeZournal's own server, never to a broker's page. */
 const ours = (url: string) => { try { return new URL(url).origin === apiOrigin() } catch { return false } }
 const open = (url: string) => ({ uri: url, headers: ours(url) ? authHeader() : undefined })
 
 /**
- * The broker's own login page, inside the app. The broker sends the member back to an EdgeLabHub address that needs a signed-in session; a web view has none,
+ * The broker's own login page, inside the app. The broker sends the member back to an TradeZournal address that needs a signed-in session; a web view has none,
  * so that last step is repeated here with the member's token (to our server only) and the page that comes back says whether it worked.
  */
 export function BrokerLogin({ url, onClose }: { url: string | null; onClose: (ok: boolean | null) => void }) {
@@ -51,7 +51,7 @@ export function BrokerLogin({ url, onClose }: { url: string | null; onClose: (ok
           <WebView source={source} onShouldStartLoadWithRequest={(r) => look(r.url)} onNavigationStateChange={nav} onLoadEnd={() => setBusy(false)} sharedCookiesEnabled thirdPartyCookiesEnabled setSupportMultipleWindows={false} style={{ flex: 1, backgroundColor: colors.bg }} />
         ) : null}
         {busy ? <View pointerEvents="none" style={{ position: "absolute", top: insets.top + 60, left: 0, right: 0, alignItems: "center" }}><ActivityIndicator color={colors.green} /></View> : null}
-        <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", paddingHorizontal: 20, paddingVertical: 10, paddingBottom: insets.bottom + 10 }}>You sign in on your broker's own page. EdgeLabHub never sees your broker password.</Text>
+        <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", paddingHorizontal: 20, paddingVertical: 10, paddingBottom: insets.bottom + 10 }}>You sign in on your broker's own page. TradeZournal never sees your broker password.</Text>
       </View>
     </Modal>
   )
@@ -62,7 +62,7 @@ export async function loginUrl(linkId: number): Promise<{ url: string } | { erro
   try { return { url: (await api.startBrokerLogin(linkId)).url } } catch (e) { return { error: e instanceof Error ? e.message : "Could not start the login." } }
 }
 
-/** Connect a broker from the phone: one tap where EdgeLabHub has its own app at the broker, else the broker's details (then its login, where it needs one). */
+/** Connect a broker from the phone: one tap where TradeZournal has its own app at the broker, else the broker's details (then its login, where it needs one). */
 export function ConnectBroker({ brokers, onLogin, onDone }: { brokers: BrokerInfo[]; onLogin: (url: string) => void; onDone: () => void }) {
   const [pick, setPick] = useState<BrokerInfo | null>(null)
   const [name, setName] = useState("")

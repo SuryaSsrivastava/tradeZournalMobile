@@ -106,7 +106,7 @@ export default function Settings() {
         <Row style={{ justifyContent: "space-between", marginTop: 14 }}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>Tips and offers</Text>
-            <Muted style={{ marginTop: 3 }}>Occasional ideas and offers from EdgeLabHub. Turn this off and you will still get your trade and release alerts.</Muted>
+            <Muted style={{ marginTop: 3 }}>Occasional ideas and offers from TradeZournal. Turn this off and you will still get your trade and release alerts.</Muted>
           </View>
           <Switch value={promos} onValueChange={togglePromos} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
         </Row>
@@ -159,7 +159,7 @@ export default function Settings() {
 
       <Card>
         <Label>About</Label>
-        <Muted>EdgeLabHub mobile {Constants.expoConfig?.version}</Muted>
+        <Muted>TradeZournal mobile {Constants.expoConfig?.version}</Muted>
         {__DEV__ ? <Muted style={{ marginTop: 2 }}>Server: {apiServer()}</Muted> : null}
       </Card>
 

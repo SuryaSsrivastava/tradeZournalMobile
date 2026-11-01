@@ -44,7 +44,7 @@ function Card({ d, hide }: { d: CardData; hide: boolean }) {
           </View>
         ))}
       </Row>
-      <Text style={{ color: colors.muted, fontSize: 11, marginTop: 18, textAlign: "center", letterSpacing: 0.4 }}>Journal your trades on edgelabhub.com</Text>
+      <Text style={{ color: colors.muted, fontSize: 11, marginTop: 18, textAlign: "center", letterSpacing: 0.4 }}>Journal your trades on tradezournal.com</Text>
     </LinearGradient>
   )
 }

@@ -19,13 +19,13 @@ export function Screen({ children, refreshing, onRefresh, scroll = true, padTop 
   )
 }
 
-/** The EdgeLabHub symbol and wordmark. `size` is the height of the symbol; `mark` shows the symbol alone. */
+/** The TradeZournal symbol and wordmark. `size` is the height of the symbol; `mark` shows the symbol alone. */
 export function Brand({ size = 34, mark = false }: { size?: number; mark?: boolean }) {
   const h = Math.round(size * 0.42)
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <Image source={require("../assets/logo-mark.png")} style={{ width: size, height: size, borderRadius: size * 0.24 }} />
-      {mark ? null : <Image source={require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 8.18, height: h, marginLeft: size * 0.3 }} />}
+      {mark ? null : <Image source={require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 5.56, height: h, marginLeft: size * 0.3 }} />}
     </View>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 /**
- * Whether the phone can reach EdgeLabHub right now, learned from the requests themselves (no extra native module): a request that cannot connect marks it offline, the next one
+ * Whether the phone can reach TradeZournal right now, learned from the requests themselves (no extra native module): a request that cannot connect marks it offline, the next one
  * that gets any answer marks it online again and lets the outbox (src/outbox.ts) send what was saved meanwhile.
  */
 let offline = false

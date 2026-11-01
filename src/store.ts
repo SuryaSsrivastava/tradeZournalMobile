@@ -6,7 +6,7 @@ try { AsyncStorage = (require("@react-native-async-storage/async-storage") as { 
  * Saved copies of what the app has loaded, so it still shows something with no connection, and the list of changes waiting to be uploaded. Kept per signed-in member and wiped when they
  * sign out. This lives in the app's private storage on the phone (the app lock guards opening the app); the sign-in token itself stays in the secure store.
  */
-const PREFIX = "edgelab.v1."
+const PREFIX = "tz.v1."
 const MAX_CHARS = 1_500_000  // one saved copy this big or more is skipped rather than risk the storage limit
 let owner = "anon"
 

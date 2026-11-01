@@ -1,8 +1,8 @@
-# EdgeLabHub mobile
+# TradeZournal mobile
 
-The EdgeLabHub phone app for Android and iOS (React Native with Expo). It is a separate project: it talks to your existing EdgeLabHub server through the normal API and keeps no data of its own.
+The TradeZournal phone app for Android and iOS (React Native with Expo). It is a separate project: it talks to your existing TradeZournal server through the normal API and keeps no data of its own.
 
-**What it does:** sign in with your EdgeLabHub account; push notifications (trades your forward tests open, economic releases you follow, rule warnings); live open positions of your MetaTrader account; the economic calendar with a bell to follow events; forward test results; settings. It never opens a broker order. It writes your journal entries (log, edit, delete), and on the Live trades screen an admin can close an open trade, which asks for confirmation first, the same as on the website.
+**What it does:** sign in with your TradeZournal account; push notifications (trades your forward tests open, economic releases you follow, rule warnings); live open positions of your MetaTrader account; the economic calendar with a bell to follow events; forward test results; settings. It never opens a broker order. It writes your journal entries (log, edit, delete), and on the Live trades screen an admin can close an open trade, which asks for confirmation first, the same as on the website.
 
 ## 1. Run it on your phone while you develop
 
@@ -17,11 +17,11 @@ The sign-in screen has an **Advanced** link to point the app at a different serv
 
 ## 2. One-time setup for push notifications
 
-The EdgeLabHub server already has what it needs (a `push_devices` table, `POST /notifications/devices`, a job that sends new notifications every 30 seconds through Expo's push service). On the phone side:
+The TradeZournal server already has what it needs (a `push_devices` table, `POST /notifications/devices`, a job that sends new notifications every 30 seconds through Expo's push service). On the phone side:
 
 1. Make a free account at https://expo.dev and run `npx eas-cli login`.
 2. In this folder run `npx eas-cli init`. It prints a **project id**; put it in `.env` as `EAS_PROJECT_ID=...` and in your shell when you build (`EAS_PROJECT_ID=... eas build ...`), or paste it into `app.config.js` (`extra.eas.projectId`).
-3. **Android:** create a Firebase project (https://console.firebase.google.com), add an Android app with package name `app.edgelabhub.mobile`, download `google-services.json` into this folder (it is git-ignored and picked up automatically). Then, in the Firebase console, Project settings, Service accounts, generate a private key and upload it with `npx eas-cli credentials` (Android, Push Notifications (FCM V1)).
+3. **Android:** create a Firebase project (https://console.firebase.google.com), add an Android app with package name `com.tradezournal.app`, download `google-services.json` into this folder (it is git-ignored and picked up automatically). Then, in the Firebase console, Project settings, Service accounts, generate a private key and upload it with `npx eas-cli credentials` (Android, Push Notifications (FCM V1)).
 4. **iOS:** needs an Apple Developer account (99 USD a year). EAS creates the push key for you the first time you build: `npx eas-cli build -p ios`.
 
 ## 3. Build the apps
@@ -43,7 +43,7 @@ EAS builds in the cloud, so you do not need Android Studio or Xcode. When the An
 
 ## 4. Put the links on the website
 
-Open `edgelab-frontend/lib/mobile-app.ts` in the EdgeLabHub repo and fill in the three links (the `.apk`, the Play Store page, the TestFlight or App Store page). The page at `/app` shows only the ones you have set.
+Open `tradezournal-frontend/lib/mobile-app.ts` in the TradeZournal repo and fill in the three links (the `.apk`, the Play Store page, the TestFlight or App Store page). The page at `/app` shows only the ones you have set.
 
 ## Notes
 

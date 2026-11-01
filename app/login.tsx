@@ -27,7 +27,7 @@ export default function Login() {
     setBusy(true); setError(null)
     try {
       if (__DEV__ && advanced) {
-        if (!validServer(server)) { setError("The server must be a full address, like https://edgelabhub.com/api/v1"); return }
+        if (!validServer(server)) { setError("The server must be a full address, like https://tradezournal.com/api/v1"); return }
         await saveServer(server)
       }
       await signIn(email, password)

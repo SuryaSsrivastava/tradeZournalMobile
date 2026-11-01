@@ -3,7 +3,7 @@ import { api, ApiError, type NewTrade, type TradeEdit } from "./api"
 import { read, write } from "./store"
 import { markOffline } from "./net"
 
-/** Changes made with no connection, kept on the phone and sent in order as soon as EdgeLabHub can be reached again. */
+/** Changes made with no connection, kept on the phone and sent in order as soon as TradeZournal can be reached again. */
 export type Op = { type: "addTrade"; body: NewTrade } | { type: "editTrade"; id: number; body: TradeEdit }
 const KEY = "outbox"
 let queue: Op[] = []

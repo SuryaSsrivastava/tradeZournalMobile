@@ -12,7 +12,7 @@ import { Button, Muted, Pill, Row, tone } from "./ui"
 
 /** What the Home and Journal screens show, as on the website: real trading, a manual journal, or backtested (replay) trades, and for the first two one or several accounts. */
 export type Mode = "real" | "manual" | "backtest"
-const KEY = "edgelab.scope"
+const KEY = "tz.scope"
 const isReplay = (t: JournalTrade) => t.source === "replay"
 
 export const inMode = (t: JournalTrade, m: Mode) => (m === "backtest" ? isReplay(t) : !isReplay(t) && (m === "manual" ? !!t.manual : !t.manual))
