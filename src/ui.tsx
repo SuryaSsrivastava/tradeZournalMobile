@@ -25,7 +25,7 @@ export function Brand({ size = 34, mark = false }: { size?: number; mark?: boole
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <Image source={require("../assets/logo-mark.png")} style={{ width: size, height: size, borderRadius: size * 0.24 }} />
-      {mark ? null : <Image source={require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 5.56, height: h, marginLeft: size * 0.3 }} />}
+      {mark ? null : <Image source={require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 8.56, height: h, marginLeft: size * 0.3 }} />}
     </View>
   )
 }

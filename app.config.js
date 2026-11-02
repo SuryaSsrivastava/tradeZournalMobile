@@ -27,7 +27,7 @@ module.exports = {
     },
     android: {
       package: "com.tradezournal.app",
-      adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#0b0e14" },
+      adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#080a0d" },
       permissions: ["POST_NOTIFICATIONS"],
       intentFilters: [{ action: "VIEW", autoVerify: true, data: [{ scheme: "https", host: apiHost, pathPrefix: "/auth/mobile" }], category: ["BROWSABLE", "DEFAULT"] }],
       ...(hasFirebase ? { googleServicesFile: "./google-services.json" } : {}),
