@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Alert, Switch, Text, View } from "react-native"
-import { api, type PropRules } from "../../src/api"
+import { api, ApiError, type PropRules } from "../../src/api"
 import { CheckMark, success } from "../../src/delight"
 import { Rise } from "../../src/fx"
 import { useLoad } from "../../src/hooks"
@@ -30,7 +30,9 @@ export default function EditAccount() {
   const [trailing, setTrailing] = useState(false)
   const [target, setTarget] = useState("")
   const [days, setDays] = useState("")
-  const [busy, setBusy] = useState<"save" | "pause" | "delete" | null>(null)
+  const [busy, setBusy] = useState<"save" | "pause" | "delete" | "sync" | null>(null)
+  const [syncNote, setSyncNote] = useState<string | null>(null)
+  const autoDone = useRef<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -56,6 +58,30 @@ export default function EditAccount() {
       setBusy(null)
     }
   }
+
+  /** Pull this account's new trades. A MetaTrader terminal that has to start takes a minute or so: the server finishes the job on its own, so look again a few times. */
+  const sync = async (auto: boolean) => {
+    setBusy("sync"); if (!auto) { setError(null); setSyncNote(null) }
+    try {
+      const r = await api.syncAccount(Number(id), auto)
+      if (r.error) { if (!auto) setError(r.error) }
+      else if (r.connecting) {
+        setSyncNote("Connecting to MetaTrader. Your trades will arrive in a minute or two.")
+        setBusy(null)  // the buttons are free while the terminal starts
+        for (let i = 0; i < 4; i++) { await new Promise((res) => setTimeout(res, 20_000)); await accounts.refresh(); await trades.refresh() }
+      } else if (!auto) setSyncNote(r.added > 0 ? `${r.added} new trade${r.added === 1 ? "" : "s"} added.` : "Up to date. No new trades.")
+      await accounts.refresh(); if (r.added > 0) await trades.refresh()
+    } catch (e) {
+      const waiting = e instanceof ApiError && e.status === 429  // the sync was done recently: the app does not nag about it on its own
+      if (!auto || !waiting) { if (!auto) setError(e instanceof Error ? e.message : "Could not sync.") }
+    } finally {
+      setBusy(null)
+    }
+  }
+  const canSync = !!a && a.kind === "metaapi" && a.status !== "paused"
+  useEffect(() => {  // opening the account brings its new trades in, once
+    if (canSync && autoDone.current !== id) { autoDone.current = id; void sync(true) }
+  }, [canSync, id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const pause = async () => {
     if (!a) return
@@ -93,6 +119,12 @@ export default function EditAccount() {
           <Label>{a.kind === "manual" ? "Manual journal account" : "MetaTrader account"}</Label>
           {a.kind !== "manual" ? <Muted style={{ marginBottom: 6 }}>{[a.hint ? `Account ${a.hint}` : "", a.server ?? "", a.status === "active" ? "connected" : a.status].filter(Boolean).join(" · ")}{a.last_sync_at ? ` · synced ${new Date(a.last_sync_at).toLocaleString()}` : ""}</Muted> : <Muted style={{ marginBottom: 6 }}>{mine} trade{mine === 1 ? "" : "s"} in this account.</Muted>}
           {a.status === "error" && a.last_error ? <ErrorNote>{a.last_error}</ErrorNote> : null}
+          {canSync ? (
+            <View style={{ marginBottom: 12 }}>
+              <Button tone="ghost" onPress={() => void sync(false)} busy={busy === "sync"} disabled={busy !== null}>Sync now</Button>
+              {syncNote ? <Muted style={{ marginTop: 6, textAlign: "center" }}>{syncNote}</Muted> : null}
+            </View>
+          ) : null}
           <Field label="Name" value={name} onChangeText={setName} maxLength={60} />
           <Field label="Starting balance" value={balance} onChangeText={setBalance} keyboardType="decimal-pad" />
         </Card>

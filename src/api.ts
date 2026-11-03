@@ -188,6 +188,8 @@ export const api = {
   removeTradingAccount: (id: number, deleteTrades: boolean) => request<void>(`/accounts/${id}?delete_trades=${deleteTrades}`, { method: "DELETE" }),
   addAccount: (b: NewAccount) => request<Account>("/accounts", { method: "POST", body: JSON.stringify(b) }),
   closePosition: (accountId: number, positionId: string) => request<{ closed: boolean }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/close`, { method: "POST" }),
+  /** Read an account's new trades from MetaTrader now. `auto` is the app doing it by itself on opening the account: the same sync, without the "your trades are in" notice. */
+  syncAccount: (id: number, auto = false) => request<{ added: number; error: string | null; connecting?: boolean; skipped?: boolean }>(`/accounts/${id}/sync?auto=${auto}`, { method: "POST" }),
   accountLive: (id: number) => request<LiveView>(`/accounts/${id}/live`),
   forwardTests: () => request<Forward[]>("/forward"),
   setForwardStatus: (id: number, status: "active" | "stopped") => request<Forward>(`/forward/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),

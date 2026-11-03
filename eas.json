@@ -56,7 +56,9 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://tradezournal.com/api/v1",
+        "LIVE_NOTIFICATION": "1",
+        "EXPO_PUBLIC_LIVE_NOTIFICATION": "1"
       }
     },
     "widget": {
