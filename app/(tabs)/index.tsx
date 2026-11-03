@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect } from "react"
-import { Text, View } from "react-native"
+import { AppState, Text, View } from "react-native"
 import { api, type Market } from "../../src/api"
 import { useAuth } from "../../src/auth"
+import { autoSyncAccounts } from "../../src/autosync"
 import { Curve } from "../../src/charts"
 import { CountUp, Press, Pulse, Rise, Stat } from "../../src/fx"
 import { clock, dayLabel, money, until } from "../../src/format"
@@ -61,6 +62,21 @@ export default function Home() {
   useEffect(() => {  // keep the home-screen widget current (only in builds that contain it)
     if (process.env.EXPO_PUBLIC_WIDGET === "1" && trades.data) { try { void (require("../../src/widget") as typeof import("../../src/widget")).refreshWidget() } catch { /* no widget in this build */ } }
   }, [trades.data])
+  useEffect(() => {  // opening the app (or coming back to it) brings the MetaTrader accounts' new trades in
+    if (list.length === 0) return
+    let alive = true
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const run = () => {
+      void autoSyncAccounts(list).then((r) => {
+        if (!alive) return
+        if (r.added > 0) { void trades.refresh(); void accounts.refresh() }
+        if (r.connecting) for (const ms of [45_000, 90_000]) timers.push(setTimeout(() => { if (alive) { void trades.refresh(); void accounts.refresh() } }, ms))  // the terminal is starting
+      })
+    }
+    run()
+    const sub = AppState.addEventListener("change", (s) => { if (s === "active") run() })
+    return () => { alive = false; sub.remove(); timers.forEach(clearTimeout) }
+  }, [list.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const { fresh, done } = useNewBadges(every)
   const refresh = () => { void accounts.refresh(); void trades.refresh(); void notices.refresh(); void next.refresh(); void rules.refresh(); void watch.refresh(); void movers.refresh() }
 
