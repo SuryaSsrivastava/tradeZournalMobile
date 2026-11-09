@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications"
 import { Stack, useRouter, useSegments } from "expo-router"
 import * as SplashScreen from "expo-splash-screen"
+import { AnimatedSplash } from "../src/splash"
 import { StatusBar } from "expo-status-bar"
 import { useEffect } from "react"
 import { SafeAreaProvider } from "react-native-safe-area-context"
@@ -107,7 +108,6 @@ function Gate() {
       <Stack.Screen name="share" options={{ title: "Add to a trade", presentation: "modal", animation: "slide_from_bottom" }} />
       <Stack.Screen name="addons" options={{ title: "Add-on packs" }} />
       <Stack.Screen name="plans" options={{ title: "Plans" }} />
-      <Stack.Screen name="partners" options={{ title: "Partner offers" }} />
       <Stack.Screen name="badges" options={{ title: "Streaks and badges" }} />
       <Stack.Screen name="positions" options={{ title: "Live trades" }} />
       <Stack.Screen name="calendar" options={{ title: "Calendar" }} />
@@ -129,6 +129,7 @@ export default function Root() {
       <AuthProvider>
         <StatusBar style="light" />
         <ScopeProvider><LockProvider><Gate /><OfflineBanner /><Toaster /></LockProvider></ScopeProvider>
+        <AnimatedSplash />
       </AuthProvider>
     </SafeAreaProvider>
   )

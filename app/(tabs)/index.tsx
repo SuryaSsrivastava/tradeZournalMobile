@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
-import { useEffect } from "react"
+import * as Haptics from "expo-haptics"
+import { LinearGradient } from "expo-linear-gradient"
+import { useEffect, useRef } from "react"
 import { AppState, Text, View } from "react-native"
 import { api, type Market } from "../../src/api"
 import { useAuth } from "../../src/auth"
@@ -11,9 +13,11 @@ import { clock, dayLabel, money, until } from "../../src/format"
 import { useLoad } from "../../src/hooks"
 import { LiveTrades } from "../../src/live"
 import { chosenAccounts, inScope, ScopeBar, useScope } from "../../src/scope"
-import { CountdownRing, GuardRails, SessionClock, Ticker, type TickerItem } from "../../src/homefx"
+import { CountdownRing, GuardRailsCard, SessionClock, Ticker, type TickerItem } from "../../src/homefx"
 import { equityPoints, journalStats } from "../../src/journal"
 import { BadgeToast, useNewBadges } from "../../src/delight"
+import { PropCard } from "../../src/propcard"
+import { showToast } from "../../src/toast"
 import { StreakCard, WeekCard } from "../../src/progress"
 import { colors, impactColor, radius } from "../../src/theme"
 import { Brand, Card, Label, Loading, Muted, Row, Screen, tone } from "../../src/ui"
@@ -78,7 +82,14 @@ export default function Home() {
     return () => { alive = false; sub.remove(); timers.forEach(clearTimeout) }
   }, [list.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const { fresh, done } = useNewBadges(every)
-  const refresh = () => { void accounts.refresh(); void trades.refresh(); void notices.refresh(); void next.refresh(); void rules.refresh(); void watch.refresh(); void movers.refresh() }
+  const refresh = () => { void Promise.all([accounts.refresh(), trades.refresh(), notices.refresh(), next.refresh(), rules.refresh(), watch.refresh(), movers.refresh()]).then(() => showToast("Synced just now")) }
+  // a guard rail that gets worse is felt as well as seen: a double tap for "close to the limit", a firm warning for "limit reached"
+  const worst = meters.some((m) => m.state === "breached") ? 2 : meters.some((m) => m.state === "warn") ? 1 : 0
+  const worstBefore = useRef<number | null>(null)
+  useEffect(() => {
+    if (worstBefore.current !== null && worst > worstBefore.current) void Haptics.notificationAsync(worst === 2 ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Warning).catch(() => {})
+    if (rules.loaded) worstBefore.current = worst
+  }, [worst, rules.loaded])
 
   return (
     <View style={{ flex: 1 }}>
@@ -103,6 +114,7 @@ export default function Home() {
       <ScopeBar trades={every} accounts={list} />
 
       <Card>
+        {today !== 0 ? <LinearGradient pointerEvents="none" colors={[`${tone(today)}${today > 0 ? "26" : "1c"}`, "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20 }} /> : null}
         <Muted>{picked ? "Today · selected accounts" : "Today"}</Muted>
         {!accounts.loaded && !trades.loaded ? <Loading /> : <CountUp value={today} format={(n) => money(n, "USD", true)} style={{ color: tone(today), fontSize: 38, fontWeight: "800", letterSpacing: -1.2 }} />}
         <View style={{ marginTop: 10 }}>{all.length > 1 ? <Curve points={equityPoints(all)} height={100} /> : <Muted>Your equity curve appears after your first trades.</Muted>}</View>
@@ -129,15 +141,9 @@ export default function Home() {
 
       {every.length > 0 && all.length === 0 ? <Card><Muted style={{ textAlign: "center" }}>No trades for this selection. Pick another account above.</Muted></Card> : null}
 
-      {meters.length > 0 ? (
-        <Card delay={180}>
-          <Row style={{ justifyContent: "space-between" }}>
-            <Label>Today's guard rails</Label>
-            <Press onPress={() => router.push("/goals")}><Row><Ionicons name="create-outline" size={15} color={colors.green} /><Text style={{ color: colors.green, fontSize: 12, fontWeight: "800", marginLeft: 4 }}>Edit</Text></Row></Press>
-          </Row>
-          <View style={{ marginTop: 8 }}><GuardRails meters={meters} /></View>
-        </Card>
-      ) : null}
+      {meters.length > 0 ? <GuardRailsCard meters={meters} onEdit={() => router.push("/goals")} delay={180} /> : null}
+
+      {chosenAccounts(list, mode, filter).filter((a) => a.is_prop && a.status !== "paused" && a.prop).map((a, i) => <PropCard key={a.id} account={a} delay={200 + i * 40} />)}
 
       {rules.loaded && meters.length === 0 ? (
         <Card delay={180}>

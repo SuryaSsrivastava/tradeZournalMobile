@@ -14,7 +14,12 @@ export type Notice = { id: number; kind: string; title: string; body: string; li
 export type Account = {
   goals?: Partial<Goals>
   id: number; name: string; kind: string; broker?: string | null; server?: string | null; is_prop: boolean; status: "active" | "connecting" | "error" | "paused"
-  hint: string; prop: { balance: number; equity: number; today: number } | null
+  hint: string; prop: {
+    balance: number; equity: number; today: number
+    state?: "ok" | "warn" | "breached"; basis?: string; trading_days?: number; min_days?: number; profitable_days?: number
+    meters?: { key: "daily" | "drawdown"; label: string; limit: number; used: number; left: number; state: "ok" | "warn" | "breached" }[]
+    target?: { amount: number; gained: number; progress: number; hit: boolean } | null
+  } | null
   starting_balance?: number; rules?: PropRules; last_sync_at?: string | null; last_error?: string; trades_synced?: number; currency?: string | null
 }
 export type LivePosition = { id: string; symbol: string; side: "Long" | "Short"; volume: number | null; open_price: number | null; price: number | null; stop: number | null; target: number | null; profit: number; swap: number | null; opened_at: string | null }
@@ -35,7 +40,6 @@ export type AddonList = { currency: "USD" | "INR"; packs: AddonPack[]; valid_day
 export type CreditRow = { left: number; expires_at: string | null }
 export type PlanCoupon = { ok: boolean; error?: string; label?: string; code?: string; currency?: "USD" | "INR"; tiers?: Record<string, { monthly: number; yearly: number; billed_yearly: number }> }
 export type AddonOrder = { id: number; status: string; label: string }
-export type Partner = { id: string; name: string; kind: string; perk: string; blurb: string }
 export type BrokerLink = { id: number; broker: "dhan" | "fyers" | "angel"; label: string; name: string; status: "active" | "error"; error: string; alias: string; balance: number | null; needs_login?: boolean }
 export type Holding = { symbol: string; name: string; exchange: string; qty: number; avg: number; ltp: number | null; invested: number; value: number | null; pnl: number | null; pnl_pct: number | null; day_pnl: number | null; link_id: number; broker: string; broker_label: string; account: string }
 export type Portfolio = { holdings: Holding[]; problems: { link_id: number; name: string; error: string }[]; totals: { invested: number; value: number; pnl: number; pnl_pct: number | null; day_pnl: number; day_pct: number | null; unpriced: number; count: number }; cached_at?: number }
@@ -234,8 +238,6 @@ export const api = {
   checkPlanCoupon: (code: string) => request<PlanCoupon>("/plans/coupons/plans", { method: "POST", body: JSON.stringify({ code }) }),
   buyAddon: (packId: string) => request<{ status: "paid" | "pending"; checkout: { payment_session_id: string; mode: string } | null; order: AddonOrder }>("/plans/addons/checkout", { method: "POST", body: JSON.stringify({ pack_id: packId }) }),
   refreshOrder: (id: number) => request<AddonOrder>(`/plans/addons/orders/${id}/refresh`, { method: "POST" }),
-  partners: () => request<{ partners: Partner[] }>("/public/partners", {}, false),
-  partnerLink: (id: string) => request<{ url: string }>(`/partners/${encodeURIComponent(id)}/link`, { method: "POST" }),
   deleteAccount: (confirmEmail: string) => request<void>("/auth/me", { method: "DELETE", body: JSON.stringify({ confirm_email: confirmEmail.trim() }) }),
   priceAlerts: () => request<{ items: PriceAlert[]; max_open: number }>("/notifications/price-alerts"),
   addPriceAlert: (b: { symbol: string; direction: "above" | "below"; price: number }) => request<PriceAlert>("/notifications/price-alerts", { method: "POST", body: JSON.stringify(b) }),

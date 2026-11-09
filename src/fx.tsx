@@ -21,15 +21,17 @@ export function useReducedMotion() {
 }
 
 /** What moves behind every screen: deep teal and indigo glows that drift, and (src/background.tsx) a grid, two scrolling chart lines and rising particles. */
-export function Ambient() {
+export function Ambient({ scrollY }: { scrollY?: Animated.Value }) {
   const reduced = useReducedMotion()
+  // parallax: the glows and the grid drift up a little slower than the page when it scrolls, so the background has depth
+  const lift = scrollY && !reduced ? { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 1200], outputRange: [0, -220], extrapolate: "clamp" }) }] } : undefined
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, lift]}>
       <Backdrop reduced={reduced} />
       <Orb color="#22d38a" size={420} left={-160} top={-120} dx={40} dy={50} ms={16000} reduced={reduced} opacity={0.2} />
       <Orb color="#6366f1" size={480} right={-200} top={160} dx={-50} dy={40} ms={22000} reduced={reduced} opacity={0.18} />
       <Orb color="#38bdf8" size={380} left={-60} bottom={-160} dx={60} dy={-40} ms={19000} reduced={reduced} opacity={0.12} />
-    </View>
+    </Animated.View>
   )
 }
 

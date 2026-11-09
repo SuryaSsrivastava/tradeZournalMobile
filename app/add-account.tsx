@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router"
 import { useState } from "react"
-import { Ionicons } from "@expo/vector-icons"
-import { Pressable, Switch, Text, View } from "react-native"
+import { Switch, Text, View } from "react-native"
 import { api, type NewAccount, type PropRules } from "../src/api"
 import { CheckMark, Pop, success } from "../src/delight"
 import { Rise } from "../src/fx"
@@ -94,13 +93,6 @@ export default function AddAccount() {
             </>
           ) : null}
         </Card>
-      </Rise>
-
-      <Rise delay={100}>
-        <Pressable onPress={() => router.push("/partners")} style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
-          <Ionicons name="gift-outline" size={18} color={colors.blue} />
-          <Text style={{ color: colors.blue, fontSize: 13, fontWeight: "700", marginLeft: 8, flex: 1 }}>No broker or prop firm account yet? See partner offers</Text>
-        </Pressable>
       </Rise>
 
       <Rise delay={140}>

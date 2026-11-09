@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useState } from "react"
-import { Pressable, Text, View } from "react-native"
+import { Alert, Pressable, Text, View } from "react-native"
 import { api, type JournalTrade } from "../../src/api"
 import { AreaChart, Columns, Curve, PnlCalendar, RankBars } from "../../src/charts"
 import { DayTrades } from "../../src/day"
@@ -10,6 +10,9 @@ import { dayLabel, money } from "../../src/format"
 import { useLoad } from "../../src/hooks"
 import { breakdown, byHour, byMonth, dailySeries, drawdownSeries, equityPoints, equityPointsR, groupByDay, holdMinutes, inRange, journalStats, maxDrawdown, minutesText, pnlByDay, pnlOf, rBuckets, rOf, rollingWinRate, sessionOf, streaks, weekdays } from "../../src/journal"
 import { ShotBadge } from "../../src/shots"
+import { SwipeRow } from "../../src/swipe"
+import { showToast } from "../../src/toast"
+import { success } from "../../src/delight"
 import { inMode, inScope, ScopeBar, useScope } from "../../src/scope"
 import { colors, radius } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
@@ -38,8 +41,16 @@ export default function Journal() {
   const all = every.filter((t) => inScope(t, mode, accts))  // follows the account chosen on Home or here
   const other = (["backtest", "manual"] as const).map((m) => ({ m, n: every.filter((t) => inMode(t, m)).length })).filter((x) => x.m !== mode && x.n > 0)
 
+  const star = async (t: JournalTrade) => {  // the "starred" tag: shows on the website too
+    const on = t.tags.includes("starred")
+    try { await api.editJournalTrade(t.id, { tags: on ? t.tags.filter((x) => x !== "starred") : [...t.tags, "starred"] }); if (!on) success(); showToast(on ? "Removed the star" : "Starred"); await trades.refresh() } catch (e) { showToast(e instanceof Error ? e.message : "Could not do that.", false) }
+  }
+  const remove = (t: JournalTrade) => Alert.alert(`Delete ${t.symbol}?`, "It is removed from your journal on the website too.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Delete", style: "destructive", onPress: async () => { try { await api.deleteJournalTrade(t.id); showToast("Trade deleted"); await trades.refresh() } catch (e) { showToast(e instanceof Error ? e.message : "Could not delete.", false) } } },
+  ])
   return (
-    <Screen refreshing={trades.refreshing} onRefresh={() => { void trades.refresh(); void counts.refresh() }}>
+    <Screen refreshing={trades.refreshing} onRefresh={() => { void Promise.all([trades.refresh(), counts.refresh()]).then(() => showToast("Journal is up to date")) }}>
       <Title brand sub={`${all.length} trade${all.length === 1 ? "" : "s"}`} right={<Press onPress={() => router.push("/trade/new")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 }}><Ionicons name="add" size={18} color="#04110b" /><Text style={{ color: "#04110b", fontWeight: "800", fontSize: 13 }}>Log trade</Text></View></Press>}>Journal</Title>
       <ScopeBar trades={every} accounts={accounts.data?.accounts ?? []} />
       {trades.error ? <ErrorNote>{trades.error}</ErrorNote> : null}
@@ -59,7 +70,7 @@ export default function Journal() {
           <Segmented tab={tab} onChange={(t) => { setTab(t); setDay(null) }} />
           <Rise key={tab}>
             {tab === "overview" ? <Overview trades={all} range={range} setRange={setRange} />
-              : tab === "trades" ? <TradeList trades={all} counts={counts.data ?? {}} filter={filter} setFilter={setFilter} onOpen={(id) => router.push(`/trade/${id}`)} />
+              : tab === "trades" ? <TradeList trades={all} counts={counts.data ?? {}} filter={filter} setFilter={setFilter} onOpen={(id) => router.push(`/trade/${id}`)} onStar={star} onDelete={remove} />
               : (
                 <>
                   <Card><PnlCalendar byDay={pnlByDay(all)} onPick={(d) => setDay(d)} />{!day ? <Muted style={{ textAlign: "center", marginTop: 10 }}>Tap a day to see its trades and screenshots.</Muted> : null}</Card>
@@ -228,7 +239,7 @@ const lbl = { color: colors.muted, fontSize: 12.5, fontWeight: "600" } as const
 const val = { color: colors.text, fontSize: 13.5, fontWeight: "800" } as const
 const Dot = ({ c }: { c: string }) => <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c, marginRight: 8 }} />
 
-function TradeList({ trades, counts, filter, setFilter, onOpen }: { trades: JournalTrade[]; counts: Record<string, number>; filter: Filter; setFilter: (f: Filter) => void; onOpen: (id: number) => void }) {
+function TradeList({ trades, counts, filter, setFilter, onOpen, onStar, onDelete }: { trades: JournalTrade[]; counts: Record<string, number>; filter: Filter; setFilter: (f: Filter) => void; onOpen: (id: number) => void; onStar: (t: JournalTrade) => void; onDelete: (t: JournalTrade) => void }) {
   const groups = groupByDay(trades.filter((t) => keep(filter, t)))
   let i = 0
   return (
@@ -240,14 +251,20 @@ function TradeList({ trades, counts, filter, setFilter, onOpen }: { trades: Jour
             <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.6 }}>{dayLabel(g.iso).toUpperCase()}</Text>
             <Text style={{ color: tone(g.total), fontSize: 12, fontWeight: "800" }}>{money(g.total, "USD", true)}</Text>
           </Row>
-          {g.trades.map((t) => <TradeRow key={t.id} t={t} shots={counts[t.id]} delay={Math.min(i++, 10) * 45} onPress={() => onOpen(t.id)} />)}
+          {g.trades.map((t) => (
+            <SwipeRow key={t.id}
+              right={{ label: t.tags.includes("starred") ? "Unstar" : "Star", icon: t.tags.includes("starred") ? "star" : "star-outline", color: colors.amber, run: () => onStar(t) }}
+              left={{ label: "Delete", icon: "trash-outline", color: colors.red, run: () => onDelete(t) }}>
+              <TradeRow t={t} shots={counts[t.id]} delay={Math.min(i++, 10) * 45} starred={t.tags.includes("starred")} onPress={() => onOpen(t.id)} />
+            </SwipeRow>
+          ))}
         </View>
       ))}
     </>
   )
 }
 
-function TradeRow({ t, shots, delay, onPress }: { t: JournalTrade; shots?: number; delay: number; onPress: () => void }) {
+function TradeRow({ t, shots, delay, starred, onPress }: { t: JournalTrade; shots?: number; delay: number; starred?: boolean; onPress: () => void }) {
   const p = pnlOf(t)
   return (
     <Press onPress={onPress}>
@@ -256,7 +273,7 @@ function TradeRow({ t, shots, delay, onPress }: { t: JournalTrade; shots?: numbe
           <Row style={{ flex: 1, paddingRight: 10 }}>
             <View style={{ width: 4, alignSelf: "stretch", borderRadius: 2, backgroundColor: tone(p), marginRight: 12, opacity: 0.9 }} />
             <View style={{ flex: 1 }}>
-              <Row><Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>{t.symbol} <Text style={{ color: t.side === "Short" ? colors.red : colors.green, fontSize: 11, fontWeight: "700" }}>{t.side.toUpperCase()}</Text></Text><ShotBadge n={shots} /></Row>
+              <Row><Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>{t.symbol} <Text style={{ color: t.side === "Short" ? colors.red : colors.green, fontSize: 11, fontWeight: "700" }}>{t.side.toUpperCase()}</Text></Text><ShotBadge n={shots} />{starred ? <Ionicons name="star" size={12} color={colors.amber} style={{ marginLeft: 6 }} /> : null}</Row>
               <Muted numberOfLines={1}>{[t.setup, t.emotions[0], t.note].filter(Boolean).join(" · ") || `${t.qty} @ ${t.entry}`}</Muted>
             </View>
           </Row>

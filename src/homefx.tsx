@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useEffect, useRef, useState } from "react"
-import { Animated, Easing, Text, View } from "react-native"
+import { useEffect, useRef, useState, type ComponentRef } from "react"
+import { Animated, Easing, Pressable, Text, View } from "react-native"
 import Svg, { Circle } from "react-native-svg"
 import type { Meter } from "./api"
-import { Bar, Pulse, Rise, useReducedMotion } from "./fx"
+import { Bar, Pulse, Rise, tick, useReducedMotion } from "./fx"
 import { colors } from "./theme"
+import { Card, Label } from "./ui"
 
 /** A clock that ticks every `ms`. */
 export function useNow(ms: number) {
@@ -17,75 +18,149 @@ const hm = (mins: number) => { const m = Math.max(0, Math.round(mins)); return m
 
 // ---- market sessions ------------------------------------------------------------------------------------------------------------------------------------------------------
 
-// Forex sessions in UTC hours (they shift an hour with daylight saving, so these are the usual figures)
+// The four forex sessions, each by its own city's clock (so they follow daylight saving there). Shown in the phone's own time zone.
 const SESSIONS = [
-  { name: "Sydney", from: 21, to: 6, color: "#a78bfa" },
-  { name: "Tokyo", from: 0, to: 9, color: "#f472b6" },
-  { name: "London", from: 7, to: 16, color: colors.blue },
-  { name: "New York", from: 12, to: 21, color: colors.green },
+  { name: "Sydney", zone: "Australia/Sydney", open: 7, close: 16, fallback: 10, color: "#a78bfa" },
+  { name: "Tokyo", zone: "Asia/Tokyo", open: 9, close: 18, fallback: 9, color: "#f472b6" },
+  { name: "London", zone: "Europe/London", open: 8, close: 17, fallback: 0, color: colors.blue },
+  { name: "New York", zone: "America/New_York", open: 8, close: 17, fallback: -5, color: colors.green },
 ]
-const isOpen = (s: { from: number; to: number }, h: number) => (s.from < s.to ? h >= s.from && h < s.to : h >= s.from || h < s.to)
+type Session = (typeof SESSIONS)[number]
+const mod24 = (h: number) => ((h % 24) + 24) % 24
+const p2 = (n: number) => String(n).padStart(2, "0")
+/** 13.5 -> "13:30" */
+const clockText = (h: number) => { const m = Math.round(mod24(h) * 60) % 1440; return `${p2(Math.floor(m / 60))}:${p2(m % 60)}` }
 
-/** The four forex sessions across 24 hours (UTC), with a marker for now that glides into place and the sessions that are open lit up. */
+/** How many hours a city is ahead of UTC right now (half hours included). Falls back to the usual figure where the phone cannot tell. */
+function zoneOffset(zone: string, fallback: number, at: Date): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" }).formatToParts(at)
+    const g = (t: string) => Number(parts.find((p) => p.type === t)?.value)
+    const asUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour") % 24, g("minute"))
+    const v = (asUtc - Math.floor(at.getTime() / 60000) * 60000) / 3600000
+    return Number.isFinite(v) ? v : fallback
+  } catch { return fallback }
+}
+
+/** Each session as a window on the member's own clock: where it starts (hours after local midnight) and how long it runs. */
+function localWindows(at: Date) {
+  const mine = -at.getTimezoneOffset() / 60  // the phone's offset from UTC
+  return SESSIONS.map((s) => {
+    const utcOpen = mod24(s.open - zoneOffset(s.zone, s.fallback, at))
+    const start = mod24(utcOpen + mine)
+    return { ...s, start, len: s.close - s.open }
+  })
+}
+type Win = ReturnType<typeof localWindows>[number]
+const isOpenAt = (w: Win, h: number) => mod24(h - w.start) < w.len  // h is a time on the member's clock
+const untilOpen = (w: Win, h: number) => mod24(w.start - h)  // hours until it next opens
+const untilClose = (w: Win, h: number) => w.len - mod24(h - w.start)
+const spans = (w: Win): [number, number][] => (w.start + w.len <= 24 ? [[w.start, w.start + w.len]] : [[w.start, 24], [0, w.start + w.len - 24]])
+
+/** The four forex sessions across the member's own day: a marker for now glides into place, the open sessions glow, each bar grows in, and a finger on the chart reads out any time of the day. */
 export function SessionClock() {
   const reduced = useReducedMotion()
   const now = useNow(20_000)
   const d = new Date(now)
-  const h = d.getUTCHours() + d.getUTCMinutes() / 60
+  const wins = localWindows(d)
+  const h = d.getHours() + d.getMinutes() / 60  // now, on the phone's clock
   const [w, setW] = useState(0)
   const at = useRef(new Animated.Value(0)).current
+  const grow = useRef(new Animated.Value(reduced ? 1 : 0)).current
+  const pulse = useRef(new Animated.Value(0)).current
+  const scrubFade = useRef(new Animated.Value(0)).current
+  const [scrub, setScrub] = useState<number | null>(null)  // a time of day (hours) under the finger
+  const area = useRef<ComponentRef<typeof View>>(null)
+  const left = useRef(0)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     if (!w) return
     if (reduced) { at.setValue(h / 24); return }
     Animated.timing(at, { toValue: h / 24, duration: 1400, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start()
   }, [h, w, reduced, at])
+  useEffect(() => {
+    if (reduced) return
+    Animated.timing(grow, { toValue: 1, duration: 1100, delay: 150, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start()
+    const loop = Animated.loop(Animated.sequence([Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }), Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true })]))
+    loop.start()
+    return () => loop.stop()
+  }, [reduced, grow, pulse])
+  useEffect(() => { Animated.timing(scrubFade, { toValue: scrub === null ? 0 : 1, duration: 160, useNativeDriver: true }).start() }, [scrub, scrubFade])
 
-  const open = SESSIONS.filter((s) => isOpen(s, h))
-  // the next time any session opens or closes
-  let nextChange: { mins: number; text: string } | null = null
-  for (const s of SESSIONS) {
-    for (const [edge, verb] of [[s.from, "opens"], [s.to, "closes"]] as const) {
-      const wasOpen = isOpen(s, h)
-      if ((verb === "closes") !== wasOpen) continue
-      const mins = ((edge - h + 24) % 24) * 60
-      if (!nextChange || mins < nextChange.mins) nextChange = { mins, text: `${s.name} ${verb} in ${hm(mins)}` }
-    }
+  const open = wins.filter((s) => isOpenAt(s, h))
+  // what happens next on the member's clock
+  let nextChange: { hrs: number; text: string } | null = null
+  for (const s of wins) {
+    const on = isOpenAt(s, h)
+    const hrs = on ? untilClose(s, h) : untilOpen(s, h)
+    if (!nextChange || hrs < nextChange.hrs) nextChange = { hrs, text: `${s.name} ${on ? "closes" : "opens"} in ${hm(hrs * 60)} (${clockText(on ? s.start + s.len : s.start)})` }
   }
-  const segments = (s: { from: number; to: number }) => (s.from < s.to ? [[s.from, s.to]] : [[s.from, 24], [0, s.to]])
+
+  const at_ = (pageX: number) => {
+    if (!w) return
+    setScrub(Math.max(0, Math.min(24, ((pageX - left.current) / w) * 24)))
+  }
+  const touch = {
+    onTouchStart: (e: { nativeEvent: { pageX: number } }) => {
+      if (hideTimer.current) clearTimeout(hideTimer.current)
+      area.current?.measureInWindow((x: number) => { left.current = x; at_(e.nativeEvent.pageX) })
+      tick()
+    },
+    onTouchMove: (e: { nativeEvent: { pageX: number } }) => at_(e.nativeEvent.pageX),
+    onTouchEnd: () => { hideTimer.current = setTimeout(() => setScrub(null), 2200) },
+    onTouchCancel: () => { hideTimer.current = setTimeout(() => setScrub(null), 600) },
+  }
+  const at2 = scrub ?? h
+  const openThen = wins.filter((s) => isOpenAt(s, at2))
+  const nextThen = wins.filter((s) => !isOpenAt(s, at2)).sort((a, b) => untilOpen(a, at2) - untilOpen(b, at2))[0]
+  const zone = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone } catch { return "" } })()
+  const off = -d.getTimezoneOffset() / 60
+  const offText = `UTC${off >= 0 ? "+" : "-"}${Math.floor(Math.abs(off))}${Math.abs(off) % 1 ? `:${p2(Math.round((Math.abs(off) % 1) * 60))}` : ""}`
 
   return (
     <View>
       <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>{open.length ? `${open.map((s) => s.name).join(" · ")} open` : "Markets are between sessions"}</Text>
       {nextChange ? <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{nextChange.text}</Text> : null}
       <View style={{ marginTop: 12 }}>
-        {SESSIONS.map((s, i) => {
-          const on = isOpen(s, h)
+        {wins.map((s, i) => {
+          const on = isOpenAt(s, h)
           return (
             <Rise key={s.name} delay={i * 80}>
-              <View style={{ flexDirection: "row", alignItems: "center", height: 22 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", height: 24 }}>
                 <Text style={{ width: 64, color: on ? colors.text : colors.muted, fontSize: 11.5, fontWeight: on ? "800" : "600" }}>{s.name}</Text>
                 <View style={{ flex: 1, height: 8 }} onLayout={i === 0 ? (e) => setW(e.nativeEvent.layout.width) : undefined}>
                   <View style={{ position: "absolute", left: 0, right: 0, top: 2, height: 4, borderRadius: 2, backgroundColor: `${colors.muted}1f` }} />
-                  {segments(s).map(([a, b], k) => (
-                    <View key={k} style={{ position: "absolute", left: `${(a / 24) * 100}%`, width: `${((b - a) / 24) * 100}%`, top: 1, height: 6, borderRadius: 3, backgroundColor: s.color, opacity: on ? 1 : 0.28, shadowColor: s.color, shadowOpacity: on ? 0.9 : 0, shadowRadius: 5, shadowOffset: { width: 0, height: 0 }, elevation: on ? 3 : 0 }} />
+                  {spans(s).map(([a, b], k) => (
+                    <Animated.View key={k} style={{ position: "absolute", left: `${(a / 24) * 100}%`, width: grow.interpolate({ inputRange: [0, 1], outputRange: ["0%", `${((b - a) / 24) * 100}%`] }), top: 1, height: 6, borderRadius: 3, backgroundColor: s.color, opacity: on ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) : 0.28, shadowColor: s.color, shadowOpacity: on ? 0.9 : 0, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }} />
                   ))}
                 </View>
+                <Text style={{ width: 86, textAlign: "right", color: on ? colors.text : colors.muted, fontSize: 10.5, fontWeight: on ? "800" : "600", fontVariant: ["tabular-nums"] }}>{clockText(s.start)}–{clockText(s.start + s.len)}</Text>
               </View>
             </Rise>
           )
         })}
         {w > 0 ? (
-          <View pointerEvents="none" style={{ position: "absolute", left: 64, right: 0, top: -4, bottom: 0 }}>
-            <Animated.View style={{ position: "absolute", top: 0, bottom: 14, width: 2, marginLeft: -1, backgroundColor: colors.text, opacity: 0.85, transform: [{ translateX: at.interpolate({ inputRange: [0, 1], outputRange: [0, w] }) }] }}>
-              <View style={{ position: "absolute", top: -3, left: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text }} />
+          <View ref={area} collapsable={false} {...touch} style={{ position: "absolute", left: 64, width: w, top: -4, bottom: 14 }}>
+            <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, width: 2, marginLeft: -1, backgroundColor: colors.text, opacity: 0.85, transform: [{ translateX: at.interpolate({ inputRange: [0, 1], outputRange: [0, w] }) }] }}>
+              <Animated.View style={{ position: "absolute", top: -3, left: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text, transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }] }} />
             </Animated.View>
+            {scrub !== null ? <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: (scrub / 24) * w - 1, width: 2, backgroundColor: colors.amber, opacity: scrubFade }}><View style={{ position: "absolute", top: -3, left: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.amber }} /></Animated.View> : null}
           </View>
         ) : null}
-        <View style={{ flexDirection: "row", marginLeft: 64, marginTop: 2 }}>
+        <View style={{ flexDirection: "row", marginLeft: 64, marginRight: 86, marginTop: 2 }}>
           {["00", "06", "12", "18", "24"].map((t, i) => <Text key={t} style={{ flex: i === 4 ? 0 : 1, color: colors.muted, fontSize: 9.5, fontWeight: "600" }}>{t}</Text>)}
         </View>
       </View>
-      <Text style={{ color: colors.muted, fontSize: 10.5, marginTop: 4 }}>Times are UTC and shift an hour with daylight saving.</Text>
+      <View style={{ minHeight: 40, marginTop: 8, borderRadius: 10, backgroundColor: scrub !== null ? `${colors.amber}14` : "transparent", paddingHorizontal: 10, paddingVertical: scrub !== null ? 6 : 0 }}>
+        {scrub !== null ? (
+          <>
+            <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: "800" }}>{clockText(scrub)}  ·  {openThen.length ? `${openThen.map((s) => s.name).join(" · ")} open` : "Between sessions"}</Text>
+            {nextThen ? <Text style={{ color: colors.muted, fontSize: 11.5, marginTop: 2 }}>{nextThen.name} starts at {clockText(nextThen.start)}{untilOpen(nextThen, scrub) > 0 ? `, ${hm(untilOpen(nextThen, scrub) * 60)} later` : ""}</Text> : null}
+          </>
+        ) : <Text style={{ color: colors.muted, fontSize: 11, paddingTop: 2 }}>Touch the chart to see any time of your day.</Text>}
+      </View>
+      <Text style={{ color: colors.muted, fontSize: 10.5, marginTop: 4 }}>Times are in your time zone{zone ? ` (${zone}, ${offText})` : ` (${offText})`}. Each session follows its own city's clock, so they shift with daylight saving.</Text>
     </View>
   )
 }
@@ -155,6 +230,39 @@ export function GuardRails({ meters }: { meters: (Meter & { scope?: string })[] 
         )
       })}
     </View>
+  )
+}
+
+/** Today's guard rails on the home screen: one slim row that says how they stand (a dot per rail), and opens to the full meters when tapped. */
+export function GuardRailsCard({ meters, onEdit, delay }: { meters: (Meter & { scope?: string })[]; onEdit: () => void; delay?: number }) {
+  const [open, setOpen] = useState(false)
+  const count = (s: Meter["state"]) => meters.filter((m) => m.state === s).length
+  const worst = count("breached") > 0 ? "breached" : count("warn") > 0 ? "warn" : count("achieved") > 0 && count("achieved") === meters.length ? "achieved" : "ok"
+  const summary = worst === "breached" ? `${count("breached")} limit${count("breached") === 1 ? "" : "s"} reached` : worst === "warn" ? `${count("warn")} close to the limit` : worst === "achieved" ? "All goals reached" : "All on track"
+  return (
+    <Card delay={delay}>
+      <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={`Today's guard rails, ${summary}`}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Label>Today's guard rails</Label>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+              {meters.slice(0, 8).map((m) => <View key={`${m.scope ?? ""}${m.key}`} style={{ width: 9, height: 9, borderRadius: 5, marginRight: 5, backgroundColor: STATE[m.state].color }} />)}
+              <Text style={{ color: STATE[worst].color, fontSize: 12.5, fontWeight: "800", marginLeft: 6 }}>{summary}</Text>
+            </View>
+          </View>
+          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} />
+        </View>
+      </Pressable>
+      {open ? (
+        <View style={{ marginTop: 14 }}>
+          <GuardRails meters={meters} />
+          <Pressable onPress={onEdit} style={{ flexDirection: "row", alignItems: "center", marginTop: 14 }}>
+            <Ionicons name="create-outline" size={15} color={colors.green} />
+            <Text style={{ color: colors.green, fontSize: 12, fontWeight: "800", marginLeft: 4 }}>Edit goals and limits</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </Card>
   )
 }
 

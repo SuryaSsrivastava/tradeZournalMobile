@@ -11,9 +11,7 @@ const MENU: [IconName, string, string, string][] = [
   ["rocket-outline", "Forward tests", "/forward-tests", "Judge a strategy on the market that comes next"],
   ["bulb-outline", "Trading insights", "/insights", "What your journal says about your habits"],
   ...(CAN_SELL ? [["sparkles-outline", "Plans and pricing", "/plans", "Upgrade for screenshots, live trades and more"] as [IconName, string, string, string]] : []),
-  ["gift-outline", "Partner offers", "/partners", "Prop firms and brokers, with offers for you"],
   ["wallet-outline", "Accounts", "/accounts", "Add, edit, pause or remove your trading accounts"],
-  ["alarm-outline", "Price alerts", "/price-alerts", "Be told when a market reaches your price"],
   ["library-outline", "Strategies", "/strategies", "Saved strategies and backtest results"],
   ["settings-outline", "Settings", "/settings", "Notifications, app lock, recaps and sign out"],
 ]

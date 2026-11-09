@@ -1,20 +1,22 @@
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native"
+import { ActivityIndicator, Animated, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import type { ReactNode } from "react"
+import { useRef, type ReactNode } from "react"
 import { Ambient, Glass, Rise, Skeleton } from "./fx"
 import { colors, radius } from "./theme"
 
 export function Screen({ children, refreshing, onRefresh, scroll = true, padTop = true }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; padTop?: boolean }) {
   const insets = useSafeAreaInsets()
+  const y = useRef(new Animated.Value(0)).current
   const pad = { paddingTop: padTop ? insets.top + 8 : 0, paddingHorizontal: 16, paddingBottom: 32 }
   if (!scroll) return <View style={s.screen}><Ambient /><View style={[{ flex: 1 }, pad]}>{children}</View></View>
   return (
     <View style={s.screen}>
-      <Ambient />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={pad} keyboardShouldPersistTaps="handled"
+      <Ambient scrollY={y} />
+      <Animated.ScrollView style={{ flex: 1 }} contentContainerStyle={pad} keyboardShouldPersistTaps="handled" scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y } } }], { useNativeDriver: true })}
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.green} colors={[colors.green]} progressBackgroundColor={colors.card} /> : undefined}>
         {children}
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   )
 }
