@@ -141,9 +141,19 @@ async function startSession(r: { user: User; access_token: string }): Promise<Us
   return r.user
 }
 
-export async function login(email: string, password: string): Promise<User> {
-  return startSession(await request<{ user: User; access_token: string }>("/auth/login", { method: "POST", body: JSON.stringify({ email: email.trim(), password }) }, false))
+/** A sign-in from a phone the account has not used is answered with a code sent to the mailbox instead of a session: finish it with verifyCode. */
+export type CodeChallenge = { verify_required: true; challenge: string; email: string }
+
+export async function login(email: string, password: string): Promise<User | CodeChallenge> {
+  const r = await request<{ user: User; access_token: string } | CodeChallenge>("/auth/login", { method: "POST", body: JSON.stringify({ email: email.trim(), password }) }, false)
+  return "verify_required" in r ? r : startSession(r)
 }
+
+export async function verifyCode(challenge: string, code: string): Promise<User> {
+  return startSession(await request<{ user: User; access_token: string }>("/auth/verify", { method: "POST", body: JSON.stringify({ challenge, code }) }, false))
+}
+
+export const resendCode = (challenge: string) => request<{ challenge: string }>("/auth/verify/resend", { method: "POST", body: JSON.stringify({ challenge }) }, false)
 
 const b64url = (b64: string) => b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 const GOOGLE_ERRORS: Record<string, string> = {

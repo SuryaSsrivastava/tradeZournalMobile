@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react"
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { apiServer, saveServer, validServer } from "../src/api"
+import { apiServer, resendCode, saveServer, validServer, type CodeChallenge } from "../src/api"
 import { useAuth } from "../src/auth"
 import { colors, radius } from "../src/theme"
 import { Brand, Button, ErrorNote } from "../src/ui"
 
 export default function Login() {
-  const { signIn, signInWithGoogle } = useAuth()
+  const { signIn, verify, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [busy, setBusy] = useState(false)
@@ -16,6 +16,9 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [advanced, setAdvanced] = useState(false)
   const [server, setServer] = useState(apiServer())
+  const [challenge, setChallenge] = useState<CodeChallenge | null>(null)
+  const [code, setCode] = useState("")
+  const [note, setNote] = useState<string | null>(null)
 
   const google = async () => {
     setGoogleBusy(true); setError(null)
@@ -30,12 +33,45 @@ export default function Login() {
         if (!validServer(server)) { setError("The server must be a full address, like https://tradezournal.com/api/v1"); return }
         await saveServer(server)
       }
-      await signIn(email, password)
+      const c = await signIn(email, password)
+      if (c) setChallenge(c)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not sign in.")
     } finally {
       setBusy(false)
     }
+  }
+
+  const submitCode = async () => {
+    if (!challenge || code.length !== 6) return
+    setBusy(true); setError(null)
+    try { await verify(challenge.challenge, code) } catch (e) { setError(e instanceof Error ? e.message : "That code did not work.") } finally { setBusy(false) }
+  }
+
+  const again = async () => {
+    if (!challenge) return
+    setError(null); setNote(null)
+    try { const r = await resendCode(challenge.challenge); setChallenge({ ...challenge, challenge: r.challenge }); setNote("A new code is on its way.") } catch (e) { setError(e instanceof Error ? e.message : "Could not send a new code.") }
+  }
+
+  if (challenge) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.wrap}>
+          <Text style={s.h1}>Check your email</Text>
+          <Text style={s.p}>We sent a 6-digit code to {challenge.email}. We ask for it when you sign in from a phone we have not seen, so a stolen password alone cannot open your account.</Text>
+          <View style={{ height: 22 }} />
+          {error ? <ErrorNote>{error}</ErrorNote> : null}
+          {note ? <Text style={{ color: colors.green, fontSize: 13, marginBottom: 10 }}>{note}</Text> : null}
+          <TextInput value={code} onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))} placeholder="123456" placeholderTextColor={colors.muted} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6} autoFocus onSubmitEditing={submitCode} style={[s.input, { textAlign: "center", fontSize: 22, letterSpacing: 8 }]} />
+          <Button onPress={submitCode} busy={busy}>Verify and continue</Button>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 18 }}>
+            <Pressable onPress={again}><Text style={{ color: colors.muted, fontSize: 13 }}>Send a new code</Text></Pressable>
+            <Pressable onPress={() => { setChallenge(null); setCode(""); setError(null); setNote(null) }}><Text style={{ color: colors.muted, fontSize: 13 }}>Back</Text></Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    )
   }
 
   return (

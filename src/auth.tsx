@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { AppState } from "react-native"
-import { api, forgetSession, googleSignIn, login as apiLogin, restoreSession, setUnauthorizedHandler, type User } from "./api"
+import { api, forgetSession, googleSignIn, login as apiLogin, restoreSession, setUnauthorizedHandler, verifyCode as apiVerify, type CodeChallenge, type User } from "./api"
 import { stopLiveNotification } from "./liveservice"
 import { setBackOnlineHandler } from "./net"
 import { flushOutbox, resetOutbox, takeFailed } from "./outbox"
@@ -8,7 +8,7 @@ import { unregisterPush } from "./push"
 import { setOwner, wipeAll } from "./store"
 import { showToast } from "./toast"
 
-type AuthState = { user: User | null; ready: boolean; signIn: (email: string, password: string) => Promise<void>; signInWithGoogle: () => Promise<boolean>; signOut: () => Promise<void>; update: (u: User) => void }
+type AuthState = { user: User | null; ready: boolean; signIn: (email: string, password: string) => Promise<CodeChallenge | null>; verify: (challenge: string, code: string) => Promise<void>; signInWithGoogle: () => Promise<boolean>; signOut: () => Promise<void>; update: (u: User) => void }
 const Ctx = createContext<AuthState | null>(null)
 
 /** Send what was saved while offline and say so. */
@@ -45,7 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.remove()
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const signIn = useCallback(async (email: string, password: string) => { put(await apiLogin(email, password)) }, [put])
+  const signIn = useCallback(async (email: string, password: string) => {
+    const r = await apiLogin(email, password)
+    if ("verify_required" in r) return r // the code is on its way to the mailbox
+    put(r)
+    return null
+  }, [put])
+  const verify = useCallback(async (challenge: string, code: string) => { put(await apiVerify(challenge, code)) }, [put])
   const signInWithGoogle = useCallback(async () => { const u = await googleSignIn(); if (u) put(u); return !!u }, [put])
   const signOut = useCallback(async () => {
     await flushOutbox().catch(() => 0) // anything saved offline goes up first
@@ -54,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clear()
   }, [clear])
 
-  const value = useMemo(() => ({ user, ready, signIn, signInWithGoogle, signOut, update: put }), [user, ready, signIn, signInWithGoogle, signOut, put])
+  const value = useMemo(() => ({ user, ready, signIn, verify, signInWithGoogle, signOut, update: put }), [user, ready, signIn, verify, signInWithGoogle, signOut, put])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
