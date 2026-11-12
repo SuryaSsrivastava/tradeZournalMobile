@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { apiServer, resendCode, saveServer, validServer, type CodeChallenge } from "../src/api"
@@ -19,6 +19,12 @@ export default function Login() {
   const [challenge, setChallenge] = useState<CodeChallenge | null>(null)
   const [code, setCode] = useState("")
   const [note, setNote] = useState<string | null>(null)
+  const [wait, setWait] = useState(0) // seconds until another code may be asked for (the server holds the same 45 seconds)
+  useEffect(() => {
+    if (wait <= 0) return
+    const t = setTimeout(() => setWait((w) => w - 1), 1000)
+    return () => clearTimeout(t)
+  }, [wait])
 
   const google = async () => {
     setGoogleBusy(true); setError(null)
@@ -34,7 +40,7 @@ export default function Login() {
         await saveServer(server)
       }
       const c = await signIn(email, password)
-      if (c) setChallenge(c)
+      if (c) { setChallenge(c); setWait(45) }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not sign in.")
     } finally {
@@ -49,9 +55,9 @@ export default function Login() {
   }
 
   const again = async () => {
-    if (!challenge) return
+    if (!challenge || wait > 0) return
     setError(null); setNote(null)
-    try { const r = await resendCode(challenge.challenge); setChallenge({ ...challenge, challenge: r.challenge }); setNote("A new code is on its way.") } catch (e) { setError(e instanceof Error ? e.message : "Could not send a new code.") }
+    try { const r = await resendCode(challenge.challenge); setChallenge({ ...challenge, challenge: r.challenge }); setWait(45); setNote("A new code is on its way.") } catch (e) { setError(e instanceof Error ? e.message : "Could not send a new code.") }
   }
 
   if (challenge) {
@@ -66,8 +72,8 @@ export default function Login() {
           <TextInput value={code} onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))} placeholder="123456" placeholderTextColor={colors.muted} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6} autoFocus onSubmitEditing={submitCode} style={[s.input, { textAlign: "center", fontSize: 22, letterSpacing: 8 }]} />
           <Button onPress={submitCode} busy={busy}>Verify and continue</Button>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 18 }}>
-            <Pressable onPress={again}><Text style={{ color: colors.muted, fontSize: 13 }}>Send a new code</Text></Pressable>
-            <Pressable onPress={() => { setChallenge(null); setCode(""); setError(null); setNote(null) }}><Text style={{ color: colors.muted, fontSize: 13 }}>Back</Text></Pressable>
+            <Pressable onPress={again} disabled={wait > 0}><Text style={{ color: colors.muted, fontSize: 13, opacity: wait > 0 ? 0.5 : 1 }}>{wait > 0 ? `Send a new code in ${wait}s` : "Send a new code"}</Text></Pressable>
+            <Pressable onPress={() => { setChallenge(null); setCode(""); setError(null); setNote(null); setWait(0) }}><Text style={{ color: colors.muted, fontSize: 13 }}>Back</Text></Pressable>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
