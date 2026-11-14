@@ -168,8 +168,11 @@ function ModelSheet({ open, models, selected, onPick, onClose }: { open: boolean
           {models.map((m) => (
             <Pressable key={m.id} onPress={() => (m.locked ? undefined : onPick(m.id))} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, opacity: m.locked ? 0.5 : 1 }}>
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{m.label}</Text>
-                <Muted>{m.locked ? "Needs a plan with premium models" : m.note || (m.tier ?? "")}</Muted>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1 }}>{m.label}</Text>
+                  {m.premium ? <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: `${colors.amber}22`, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}><Ionicons name="diamond" size={11} color={colors.amber} /><Text style={{ color: colors.amber, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.4 }}>PREMIUM</Text></View> : null}
+                </View>
+                <Muted>{m.locked ? "Not included in your plan" : m.note || (m.tier ?? "")}</Muted>
               </View>
               <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", marginRight: 10 }}>{m.cost} {m.cost === 1 ? "request" : "requests"}</Text>
               {m.locked ? <Ionicons name="lock-closed" size={16} color={colors.muted} /> : <Ionicons name={m.id === selected ? "radio-button-on" : "radio-button-off"} size={20} color={m.id === selected ? colors.green : colors.muted} />}
