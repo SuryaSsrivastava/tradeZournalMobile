@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
+import { ActivityIndicator, Dimensions, KeyboardAvoidingView, LayoutAnimation, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
 import { api, ApiError, type LlmModel, type Market, type ScreenResult, type ScreenRow } from "../../src/api"
 import { Press } from "../../src/fx"
 import { money } from "../../src/format"
 import { useLoad } from "../../src/hooks"
+import { AiReply, AskBubble, parseReply } from "../../src/answer"
 import { AllowanceBanner } from "../../src/upgrade"
 import { listen, voiceAvailable } from "../../src/voice"
 import { colors, radius } from "../../src/theme"
@@ -42,6 +43,9 @@ export default function Markets() {
   const [chatError, setChatError] = useState<string | null>(null)
   const [spent, setSpent] = useState<string | null>(null)  // the server said the AI allowance is used up: the message it gave
   const [answer, setAnswer] = useState<ScreenResult | null>(null)
+  const [small, setSmall] = useState(false)  // the conversation is folded to one line
+  const chatScroll = useRef<{ scrollToEnd: (o?: { animated?: boolean }) => void } | null>(null)
+  const fold = (to: boolean) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSmall(to) }
   const [model, setModel] = useState<string | null>(null)  // null: the server's own choice
   const [picking, setPicking] = useState(false)
   const models = useLoad(() => api.llmModels())
@@ -69,7 +73,7 @@ export default function Markets() {
   const send = async (text: string) => {
     const message = text.trim()
     if (!message || thinking) return
-    setAsk(""); setChatError(null); setSpent(null); setThinking(true)
+    setAsk(""); setChatError(null); setSpent(null); setThinking(true); setSmall(false)
     const history = turns.slice(-6)
     setTurns((t) => [...t, { role: "user", text: message }])
     try {
@@ -98,16 +102,36 @@ export default function Markets() {
         {text ? <Pressable onPress={() => setText("")} hitSlop={10}><Ionicons name="close-circle" size={18} color={colors.muted} /></Pressable> : null}
       </Row>
       {turns.length ? (
-        <Card style={{ borderColor: `${colors.green}55` }}>
-          <Row style={{ justifyContent: "space-between", marginBottom: 6 }}>
-            <Label>Your screen</Label>
-            <Pressable onPress={clearChat} hitSlop={10}><Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>Clear</Text></Pressable>
+        <View style={{ marginVertical: 6 }}>
+          <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
+            <Pressable onPress={() => fold(!small)} hitSlop={10} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Label>Your screen</Label>
+              {answer ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: `${colors.green}1f`, borderWidth: 1, borderColor: `${colors.green}55`, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2, marginBottom: 6 }}>
+                  <Ionicons name="funnel" size={10} color={colors.green} />
+                  <Text style={{ color: colors.green, fontSize: 11.5, fontWeight: "800" }}>{(answer.matched ?? answer.total).toLocaleString()} {(answer.matched ?? answer.total) === 1 ? "stock" : "stocks"}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            <Row style={{ gap: 18 }}>
+              <Pressable onPress={() => fold(!small)} hitSlop={12}><Ionicons name={small ? "expand-outline" : "contract-outline"} size={19} color={colors.green} /></Pressable>
+              <Pressable onPress={clearChat} hitSlop={12}><Ionicons name="trash-outline" size={19} color={colors.muted} /></Pressable>
+            </Row>
           </Row>
-          {turns.slice(-4).map((t, i) => (
-            <Text key={i} style={{ color: t.role === "user" ? colors.muted : colors.text, fontSize: 13.5, lineHeight: 19, marginTop: i ? 6 : 0, fontWeight: t.role === "user" ? "600" : "400" }}>{t.role === "user" ? `You: ${t.text}` : t.text}</Text>
-          ))}
-          {thinking ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}><ActivityIndicator size="small" color={colors.green} /><Muted>Working on it…</Muted></View> : null}
-        </Card>
+          {small ? (
+            <Pressable onPress={() => fold(false)} style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.cardHi, borderWidth: 1, borderColor: `${colors.green}33`, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 11 }}>
+              <Ionicons name="sparkles" size={14} color={colors.green} />
+              <Text numberOfLines={1} style={{ flex: 1, color: colors.text, fontSize: 13, fontWeight: "600" }}>{parseReply([...turns].reverse().find((t) => t.role === "assistant")?.text ?? "").lead || "Tap to open the conversation"}</Text>
+              <Ionicons name="expand-outline" size={16} color={colors.muted} />
+            </Pressable>
+          ) : (
+            <ScrollView ref={(r) => { chatScroll.current = r }} nestedScrollEnabled persistentScrollbar showsVerticalScrollIndicator style={{ maxHeight: Dimensions.get("window").height * 0.42 }} contentContainerStyle={{ paddingRight: 4 }}
+              onContentSizeChange={() => chatScroll.current?.scrollToEnd({ animated: true })}>
+              {turns.map((t, i) => t.role === "user" ? <AskBubble key={i} text={t.text} /> : <View key={i} style={{ marginBottom: 12 }}><AiReply text={t.text} /></View>)}
+              {thinking ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}><ActivityIndicator size="small" color={colors.green} /><Muted>Working on it…</Muted></View> : null}
+            </ScrollView>
+          )}
+        </View>
       ) : null}
       {spent ? <AllowanceBanner message={spent} onClose={() => setSpent(null)} /> : null}
       {chatError ? <ErrorNote>{chatError}</ErrorNote> : null}

@@ -26,7 +26,7 @@ export function Brand({ size = 34, mark = false }: { size?: number; mark?: boole
   const h = Math.round(size * 0.42)
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <Image source={require("../assets/logo-mark.png")} style={{ width: size, height: size, borderRadius: size * 0.24 }} />
+      <Image source={currentScheme() === "light" ? require("../assets/logo-mark-clear-light.png") : require("../assets/logo-mark-clear.png")} style={{ width: size, height: size }} />
       {mark ? null : <Image source={currentScheme() === "light" ? require("../assets/logo-wordmark-light.png") : require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 8.56, height: h, marginLeft: size * 0.3 }} />}
     </View>
   )
