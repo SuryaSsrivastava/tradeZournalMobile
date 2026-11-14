@@ -54,7 +54,7 @@ export type NewTrade = { symbol: string; side: "Long" | "Short"; entry: number; 
 export type TradeEdit = { note?: string; rating?: number; setup?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
 export type Market = "nse" | "us" | "crypto" | "forex"
 export type ScreenRow = { symbol: string; name: string; sector: string; market: string; price?: number | null; chg_1d?: number | null; ret_1y?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null; div_yield?: number | null; volume_24h?: number | null; [k: string]: unknown }
-export type ScreenResult = { total: number; matched: number; updated_at: string | null; rows: ScreenRow[] }
+export type ScreenResult = { total: number; matched: number; updated_at: string | null; rows: ScreenRow[]; spec?: ScreenSpec }
 export type ScreenSpec = { filters: { field: string; op: string; value: number | string }[]; sort?: { field: string; dir: "asc" | "desc" } | null; search?: string; limit?: number | null }
 export type AssetDetail = { symbol: string; name: string; sector: string; industry: string; market: Market; metrics: Record<string, number | null>; history: [number, number][]; about: string; website: string; facts: Record<string, unknown>; peers: { symbol: string; name: string; price: number | null; pe: number | null; ret_1y: number | null }[] }
 export type BacktestStats = { trades: number; win_rate?: number; expectancy_r?: number; total_r?: number; profit_factor?: number | null; max_drawdown_pct?: number; max_drawdown_r?: number; return_pct?: number; avg_win_r?: number; avg_loss_r?: number; sqn?: number | null; backtest_id?: number }
@@ -246,6 +246,7 @@ export const api = {
   screen: (market: Market, spec: ScreenSpec, offset = 0, page = 50) => request<ScreenResult>("/screener/query", { method: "POST", body: JSON.stringify({ market, spec, offset, page }) }),
   screenChat: (market: Market, message: string, history: { role: "user" | "assistant"; text: string }[], model?: string | null) =>
     request<{ reply: string; result: ScreenResult }>("/screener/chat", { method: "POST", body: JSON.stringify({ market, message, spec: {}, history, model: model ?? undefined }) }),
+  screenFields: (market: Market) => request<{ fields: { key: string; label: string; kind: string }[]; sectors: string[] }>(`/screener/fields?market=${market}`),
   asset: (market: string, symbol: string) => request<AssetDetail>(`/screener/${market}/${encodeURIComponent(symbol)}`),
   strategies: (limit = 30) => request<StrategyRow[]>(`/strategies/overview?limit=${limit}&skip_forward=true`),
   backtestTrades: (id: number) => request<BacktestTrade[]>(`/backtests/${id}/trades`),

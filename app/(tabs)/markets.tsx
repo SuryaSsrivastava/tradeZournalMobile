@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import { ActivityIndicator, Dimensions, KeyboardAvoidingView, LayoutAnimation, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
-import { api, ApiError, type LlmModel, type Market, type ScreenResult, type ScreenRow } from "../../src/api"
+import { api, ApiError, type LlmModel, type Market, type ScreenResult, type ScreenRow, type ScreenSpec } from "../../src/api"
 import { Press } from "../../src/fx"
 import { money } from "../../src/format"
 import { useLoad } from "../../src/hooks"
@@ -21,8 +21,9 @@ const SORTS: [string, string, { field: string; dir: "asc" | "desc" }][] = [
   ["lose", "s_lose", { field: "chg_1d", dir: "asc" }],
   ["year", "s_year", { field: "ret_1y", dir: "desc" }],
 ]
-const IDEAS = ["idea1", "idea2", "idea3", "idea4"]
-type Turn = { role: "user" | "assistant"; text: string }
+const IDEAS = ["idea1", "idea2", "idea3", "idea4"]  // what to try first
+const FOLLOW = ["f1", "f2", "f3", "f4"]  // what to try next, once there is an answer
+type Turn = { role: "user" | "assistant"; text: string; spec?: ScreenSpec }
 const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`)
 
 export default function Markets() {
@@ -54,6 +55,8 @@ export default function Markets() {
   const { lang, setLang } = useLang()  // the language of the app, spoken to the mic and asked for in the answers
   const [pickingLang, setPickingLang] = useState(false)
   const chooseLang = (l: Language) => { setLang(l); setPickingLang(false) }
+  const fieldNames = useLoad(() => api.screenFields(market), { deps: [market] })  // what each filter is called, for the chips
+  const labels = Object.fromEntries((fieldNames.data?.fields ?? []).map((f) => [f.key, f.label]))
   const models = useLoad(() => api.llmModels())
   const choices = models.data?.available ? models.data.models : []
   const current = choices.find((m) => m.id === (model ?? models.data?.default))
@@ -85,7 +88,7 @@ export default function Markets() {
     setTurns((p) => [...p, { role: "user", text: message }])
     try {
       const r = await api.screenChat(market, message + replyIn(lang), history, model)
-      setTurns((p) => [...p, { role: "assistant", text: r.reply }])
+      setTurns((p) => [...p, { role: "assistant", text: r.reply, spec: r.result.spec }])
       setAnswer(r.result)
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) setSpent(e.message)
@@ -134,7 +137,7 @@ export default function Markets() {
           ) : (
             <ScrollView ref={(r) => { chatScroll.current = r }} nestedScrollEnabled persistentScrollbar showsVerticalScrollIndicator style={{ maxHeight: Dimensions.get("window").height * 0.42 }} contentContainerStyle={{ paddingRight: 4 }}
               onContentSizeChange={() => chatScroll.current?.scrollToEnd({ animated: true })}>
-              {turns.map((x, i) => x.role === "user" ? <AskBubble key={i} text={x.text} /> : <View key={i} style={{ marginBottom: 12 }}><AiReply text={x.text} /></View>)}
+              {turns.map((x, i) => x.role === "user" ? <AskBubble key={i} text={x.text} /> : <View key={i} style={{ marginBottom: 12 }}><AiReply text={x.text} spec={x.spec} labels={labels} /></View>)}
               {thinking ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}><ActivityIndicator size="small" color={colors.green} /><Muted>{t("working")}</Muted></View> : null}
             </ScrollView>
           )}
@@ -168,9 +171,9 @@ export default function Markets() {
           <Ionicons name="chevron-up" size={12} color={colors.muted} />
         </Pressable>
       </Row>
-      {!turns.length ? (
+      {!thinking ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 8 }}>
-          {IDEAS.map((k) => <Pill key={k} onPress={() => void send(t(k))}>{t(k)}</Pill>)}
+          {(turns.length ? FOLLOW : IDEAS).map((k) => <Pill key={k} onPress={() => void send(t(k))}>{t(k)}</Pill>)}
         </ScrollView>
       ) : null}
       <Row style={{ gap: 8 }}>

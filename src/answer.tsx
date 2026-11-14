@@ -1,18 +1,25 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react"
 import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from "react-native"
+import type { ScreenSpec } from "./api"
 import { colors } from "./theme"
 import { tick } from "./fx"
 import { useT } from "./i18n"
 
 if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true)
 
-/** The reply of the screener chat: "Here is what I did: <sentence>.\n- Title: why\n- Title: why\nA closing caution." split into the parts it is made of. */
+/** The reply of the screener chat, split into the parts it is made of. Either "Here is what I did: <sentence>.\n- Title: why\n- Title: why\nA closing caution." or, when the model answers in plain sentences, the first sentence, the rest, and the caution. */
 export function parseReply(text: string) {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
   const isItem = (l: string) => /^[-•*]\s+/.test(l)
   const first = lines.findIndex(isItem)
-  if (first < 0) return { lead: text.trim(), items: [] as { title: string; why: string }[], note: "" }
+  if (first < 0) {
+    const sentences = text.replace(/^here is what i did:\s*/i, "").trim().split(/(?<=[.!?।])\s+/).filter(Boolean)
+    const cautionAt = sentences.findIndex((x, i) => i > 0 && /research further|guarantee|not (a )?(financial |investment )?advice|no assurance/i.test(x))
+    const note = cautionAt > 0 ? sentences.slice(cautionAt).join(" ") : ""
+    const kept = cautionAt > 0 ? sentences.slice(0, cautionAt) : sentences
+    return { lead: kept[0] ?? text.trim(), body: kept.slice(1).join(" "), items: [] as { title: string; why: string }[], note }
+  }
   let last = first
   while (last + 1 < lines.length && isItem(lines[last + 1])) last++
   const lead = lines.slice(0, first).join(" ").replace(/^here is what i did:\s*/i, "").trim()
@@ -21,13 +28,28 @@ export function parseReply(text: string) {
     const at = body.indexOf(": ")
     return at > 0 ? { title: body.slice(0, at).trim(), why: body.slice(at + 2).trim() } : { title: body, why: "" }
   })
-  return { lead, items, note: lines.slice(last + 1).join(" ").trim() }
+  return { lead, body: "", items, note: lines.slice(last + 1).join(" ").trim() }
 }
 
-/** What the assistant says, laid out: the sentence that sums it up, the filters it used as chips (tap to see why each was chosen), and the caution small at the bottom. */
-export function AiReply({ text }: { text: string }) {
+const OP: Record<string, string> = { gt: ">", gte: "≥", lt: "<", lte: "≤", eq: "=", ne: "≠", contains: "has", in: "is" }
+const num = (v: unknown) => (typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : Array.isArray(v) ? v.join(", ") : String(v))
+
+/** The filters the screen actually used, as short labels ("P/E < 20", "Top 25"), from the spec the server ran (so they are right whatever the model wrote). `labels` maps a field key to its name. */
+export function specChips(spec: ScreenSpec | undefined, labels: Record<string, string>): string[] {
+  if (!spec) return []
+  const name = (k: string) => labels[k] ?? k.replace(/_/g, " ")
+  const out = (spec.filters ?? []).map((f) => `${name(f.field)} ${OP[f.op] ?? f.op} ${num(f.value)}`)
+  if (spec.sort?.field) out.push(`${name(spec.sort.field)} ${spec.sort.dir === "asc" ? "↑" : "↓"}`)
+  if (spec.limit) out.push(`Top ${spec.limit}`)
+  if (spec.search) out.push(`"${spec.search}"`)
+  return out
+}
+
+/** What the assistant says, laid out: the sentence that sums it up, the filters it used as chips (and, when the model explained each one, a tap to see why), the rest of the explanation, and the caution small at the bottom. */
+export function AiReply({ text, spec, labels }: { text: string; spec?: ScreenSpec; labels?: Record<string, string> }) {
   const t = useT()
-  const { lead, items, note } = parseReply(text)
+  const { lead, body, items, note } = parseReply(text)
+  const chips = items.length ? items.map((i) => i.title) : specChips(spec, labels ?? {})
   const [open, setOpen] = useState(false)
   const toggle = () => { tick(); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v) }
   return (
@@ -39,17 +61,20 @@ export function AiReply({ text }: { text: string }) {
         <Text style={{ color: colors.green, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginLeft: 8 }}>{t("did")}</Text>
       </View>
       <Text style={{ color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: "600" }}>{lead || text}</Text>
+      {body ? <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 }}>{body}</Text> : null}
 
+      {chips.length ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          {chips.map((c, i) => (
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: `${colors.green}14`, borderWidth: 1, borderColor: `${colors.green}44`, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Ionicons name="funnel" size={10} color={colors.green} />
+              <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{c}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       {items.length ? (
         <>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-            {items.map((it, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: `${colors.green}14`, borderWidth: 1, borderColor: `${colors.green}44`, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Ionicons name="funnel" size={10} color={colors.green} />
-                <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{it.title}</Text>
-              </View>
-            ))}
-          </View>
           {open ? (
             <View style={{ marginTop: 12, gap: 10 }}>
               {items.map((it, i) => it.why ? (
