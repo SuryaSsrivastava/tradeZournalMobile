@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router"
 import * as SplashScreen from "expo-splash-screen"
 import { AnimatedSplash } from "../src/splash"
 import { StatusBar } from "expo-status-bar"
-import { useEffect } from "react"
+import { Fragment, useEffect } from "react"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { api } from "../src/api"
 import { AuthProvider, useAuth } from "../src/auth"
@@ -133,7 +133,7 @@ function Themed() {
   return (
     <>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
-      <ScopeProvider key={scheme}><LockProvider><Gate /><OfflineBanner /><Toaster /></LockProvider></ScopeProvider>
+      <ScopeProvider><LockProvider><Fragment key={scheme}><Gate /><OfflineBanner /><Toaster /></Fragment></LockProvider></ScopeProvider>
       <AnimatedSplash />
     </>
   )

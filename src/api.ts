@@ -154,6 +154,7 @@ export async function register(email: string, password: string): Promise<User | 
   return "verify_required" in r ? r : startSession(r)
 }
 
+export type LlmModel = { id: string; label: string; note?: string; tier?: string; premium?: boolean; cost: number; locked: boolean }
 export type LoginDevice = { id: number; label: string; ip: string | null; app: boolean; status: "signed_in" | "expired" | "signed_out"; current: boolean; first_seen_at: string; last_signin_at: string; last_used_at: string | null; last_ip: string | null }
 
 /** Sign out of every device. This phone is given a fresh session in the answer, so it stays signed in. */
@@ -201,6 +202,8 @@ export const api = {
   logout: () => request<void>("/auth/logout", { method: "POST" }),
   devices: () => request<{ devices: LoginDevice[] }>("/auth/devices").then((r) => r.devices),
   signOutDevice: (id: number) => request<void>(`/auth/devices/${id}`, { method: "DELETE" }),
+  removeDevice: (id: number) => request<void>(`/auth/devices/${id}?remove=true`, { method: "DELETE" }),  // signed out and taken off the list
+  llmModels: () => request<{ available: boolean; default: string; models: LlmModel[] }>("/strategies/models"),
   updateProfile: (b: { name?: string; timezone?: string }) => request<User>("/auth/me", { method: "PATCH", body: JSON.stringify(b) }),
   changePassword: (current: string | null, next: string) => request<void>("/auth/password", { method: "POST", body: JSON.stringify({ current_password: current, new_password: next }) }),
   planUsage: () => request<PlanUsage>("/plans/usage"),
@@ -241,8 +244,8 @@ export const api = {
   addTradeShot: (id: number, b: { image: string; thumb: string; caption: string }) => request<ManualShot>(`/journal/trades/${id}/shots`, { method: "POST", body: JSON.stringify(b) }),
   deleteJournalTrade: (id: number) => request<void>(`/journal/trades/${id}`, { method: "DELETE" }),
   screen: (market: Market, spec: ScreenSpec, offset = 0, page = 50) => request<ScreenResult>("/screener/query", { method: "POST", body: JSON.stringify({ market, spec, offset, page }) }),
-  screenChat: (market: Market, message: string, history: { role: "user" | "assistant"; text: string }[]) =>
-    request<{ reply: string; result: ScreenResult }>("/screener/chat", { method: "POST", body: JSON.stringify({ market, message, spec: {}, history }) }),
+  screenChat: (market: Market, message: string, history: { role: "user" | "assistant"; text: string }[], model?: string | null) =>
+    request<{ reply: string; result: ScreenResult }>("/screener/chat", { method: "POST", body: JSON.stringify({ market, message, spec: {}, history, model: model ?? undefined }) }),
   asset: (market: string, symbol: string) => request<AssetDetail>(`/screener/${market}/${encodeURIComponent(symbol)}`),
   strategies: (limit = 30) => request<StrategyRow[]>(`/strategies/overview?limit=${limit}&skip_forward=true`),
   backtestTrades: (id: number) => request<BacktestTrade[]>(`/backtests/${id}/trades`),

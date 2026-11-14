@@ -214,6 +214,13 @@ function Devices() {
       try { await api.signOutDevice(d.id); await list.refresh() } catch (e) { setNote({ ok: false, text: e instanceof Error ? e.message : "Could not sign that device out." }) } finally { setBusy(null) }
     } },
   ])
+  const remove = (d: LoginDevice) => Alert.alert("Remove this device?", `${d.label} is signed out and taken off this list. If it signs in again it shows up as a new device.`, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Remove", style: "destructive", onPress: async () => {
+      setBusy(d.id); setNote(null)
+      try { await api.removeDevice(d.id); await list.refresh() } catch (e) { setNote({ ok: false, text: e instanceof Error ? e.message : "Could not remove that device." }) } finally { setBusy(null) }
+    } },
+  ])
   const outAll = () => Alert.alert("Sign out everywhere else?", "Every other phone and browser will be signed out. This phone stays signed in.", [
     { text: "Cancel", style: "cancel" },
     { text: "Sign out others", style: "destructive", onPress: async () => {
@@ -241,8 +248,11 @@ function Devices() {
                   <Muted numberOfLines={1}><Text style={{ color: st.color(), fontWeight: "700" }}>{st.text}</Text> · last sign-in {when(d.last_signin_at)}</Muted>
                   <Muted numberOfLines={1}>{d.last_ip || d.ip ? `${d.last_ip || d.ip} · ` : ""}{d.last_used_at ? `last used ${when(d.last_used_at)}` : `first seen ${when(d.first_seen_at)}`}</Muted>
                 </View>
-                {!d.current && d.status === "signed_in" ? (
-                  <Text onPress={busy ? undefined : () => out(d)} style={{ color: colors.red, fontSize: 13, fontWeight: "700", paddingLeft: 10, opacity: busy === d.id ? 0.5 : 1 }}>Sign out</Text>
+                {!d.current ? (
+                  <View style={{ alignItems: "flex-end", paddingLeft: 10, gap: 8, opacity: busy === d.id ? 0.5 : 1 }}>
+                    {d.status === "signed_in" ? <Text onPress={busy ? undefined : () => out(d)} style={{ color: colors.amber, fontSize: 13, fontWeight: "700" }}>Sign out</Text> : null}
+                    <Text onPress={busy ? undefined : () => remove(d)} style={{ color: colors.red, fontSize: 13, fontWeight: "700" }}>Remove</Text>
+                  </View>
                 ) : null}
               </View>
             )
