@@ -8,23 +8,26 @@ import { money } from "../../src/format"
 import { useLoad } from "../../src/hooks"
 import { AiReply, AskBubble, parseReply } from "../../src/answer"
 import { AllowanceBanner } from "../../src/upgrade"
+import { LANGUAGES, ROOM_FOR_REPLY_NOTE, replyIn, type Language } from "../../src/languages"
+import { useLang, useT } from "../../src/i18n"
 import { listen, voiceAvailable } from "../../src/voice"
 import { colors, radius } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 
-const MARKETS: [Market, string, string][] = [["nse", "India", "INR"], ["us", "US stocks", "USD"], ["crypto", "Crypto", "USD"], ["forex", "Forex", ""]]
+const MARKETS: [Market, string, string][] = [["nse", "m_nse", "INR"], ["us", "m_us", "USD"], ["crypto", "m_crypto", "USD"], ["forex", "m_forex", ""]]  // the middle one is the key of its translated name
 const SORTS: [string, string, { field: string; dir: "asc" | "desc" }][] = [
-  ["top", "Top", { field: "market_cap", dir: "desc" }],
-  ["gain", "Gainers", { field: "chg_1d", dir: "desc" }],
-  ["lose", "Losers", { field: "chg_1d", dir: "asc" }],
-  ["year", "1Y best", { field: "ret_1y", dir: "desc" }],
+  ["top", "s_top", { field: "market_cap", dir: "desc" }],
+  ["gain", "s_gain", { field: "chg_1d", dir: "desc" }],
+  ["lose", "s_lose", { field: "chg_1d", dir: "asc" }],
+  ["year", "s_year", { field: "ret_1y", dir: "desc" }],
 ]
-const IDEAS = ["Top gainers today", "Large companies with PE under 20", "High dividend yield", "Strong ROE and low PE"]
+const IDEAS = ["idea1", "idea2", "idea3", "idea4"]
 type Turn = { role: "user" | "assistant"; text: string }
 const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`)
 
 export default function Markets() {
   const router = useRouter()
+  const t = useT()
   const [market, setMarket] = useState<Market>("nse")
   const [sort, setSort] = useState("top")
   const [text, setText] = useState("")
@@ -48,6 +51,9 @@ export default function Markets() {
   const fold = (to: boolean) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSmall(to) }
   const [model, setModel] = useState<string | null>(null)  // null: the server's own choice
   const [picking, setPicking] = useState(false)
+  const { lang, setLang } = useLang()  // the language of the app, spoken to the mic and asked for in the answers
+  const [pickingLang, setPickingLang] = useState(false)
+  const chooseLang = (l: Language) => { setLang(l); setPickingLang(false) }
   const models = useLoad(() => api.llmModels())
   const choices = models.data?.available ? models.data.models : []
   const current = choices.find((m) => m.id === (model ?? models.data?.default))
@@ -62,9 +68,10 @@ export default function Markets() {
     const base = ask.trim()
     setHearing(true)
     const stop = await listen({
-      onText: (t) => setAsk(base ? `${base} ${t}` : t),
+      lang: lang.speech,
+      onText: (x) => setAsk(base ? `${base} ${x}` : x),
       onEnd: () => { setHearing(false); stopListening.current = null },
-      onError: (m) => { setVoiceNote(m); setHearing(false) },
+      onError: (m) => { setVoiceNote(t(m)); setHearing(false) },
     })
     if (stop) stopListening.current = stop
     else setHearing(false)
@@ -75,10 +82,10 @@ export default function Markets() {
     if (!message || thinking) return
     setAsk(""); setChatError(null); setSpent(null); setThinking(true); setSmall(false)
     const history = turns.slice(-6)
-    setTurns((t) => [...t, { role: "user", text: message }])
+    setTurns((p) => [...p, { role: "user", text: message }])
     try {
-      const r = await api.screenChat(market, message, history, model)
-      setTurns((t) => [...t, { role: "assistant", text: r.reply }])
+      const r = await api.screenChat(market, message + replyIn(lang), history, model)
+      setTurns((p) => [...p, { role: "assistant", text: r.reply }])
       setAnswer(r.result)
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) setSpent(e.message)
@@ -94,22 +101,22 @@ export default function Markets() {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
     <Screen refreshing={res.refreshing} onRefresh={res.refresh}>
-      <Title brand sub="Screen stocks, crypto and forex" right={<Press onPress={() => router.push("/calendar")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 }}><Ionicons name="calendar-outline" size={16} color={colors.text} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>Calendar</Text></View></Press>}>Screener</Title>
-      <Row style={{ flexWrap: "wrap" }}>{MARKETS.map(([k, l]) => <Pill key={k} active={market === k} onPress={() => setMarket(k)} color={colors.blue}>{l}</Pill>)}</Row>
+      <Title brand sub={t("sub")} right={<Press onPress={() => router.push("/calendar")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 }}><Ionicons name="calendar-outline" size={16} color={colors.text} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{t("calendar")}</Text></View></Press>}>{t("tab_screener")}</Title>
+      <Row style={{ flexWrap: "wrap" }}>{MARKETS.map(([k, l]) => <Pill key={k} active={market === k} onPress={() => setMarket(k)} color={colors.blue}>{t(l)}</Pill>)}</Row>
       <Row style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, marginVertical: 10 }}>
         <Ionicons name="search" size={17} color={colors.muted} />
-        <TextInput value={text} onChangeText={setText} placeholder="Search a name or symbol" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 12, marginLeft: 8 }} />
+        <TextInput value={text} onChangeText={setText} placeholder={t("search")} placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 12, marginLeft: 8 }} />
         {text ? <Pressable onPress={() => setText("")} hitSlop={10}><Ionicons name="close-circle" size={18} color={colors.muted} /></Pressable> : null}
       </Row>
       {turns.length ? (
         <View style={{ marginVertical: 6 }}>
           <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
             <Pressable onPress={() => fold(!small)} hitSlop={10} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Label>Your screen</Label>
+              <Label>{t("yourscreen")}</Label>
               {answer ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: `${colors.green}1f`, borderWidth: 1, borderColor: `${colors.green}55`, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2, marginBottom: 6 }}>
                   <Ionicons name="funnel" size={10} color={colors.green} />
-                  <Text style={{ color: colors.green, fontSize: 11.5, fontWeight: "800" }}>{(answer.matched ?? answer.total).toLocaleString()} {(answer.matched ?? answer.total) === 1 ? "stock" : "stocks"}</Text>
+                  <Text style={{ color: colors.green, fontSize: 11.5, fontWeight: "800" }}>{(answer.matched ?? answer.total) === 1 ? t("count1") : t("count", { n: (answer.matched ?? answer.total).toLocaleString() })}</Text>
                 </View>
               ) : null}
             </Pressable>
@@ -121,48 +128,55 @@ export default function Markets() {
           {small ? (
             <Pressable onPress={() => fold(false)} style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.cardHi, borderWidth: 1, borderColor: `${colors.green}33`, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 11 }}>
               <Ionicons name="sparkles" size={14} color={colors.green} />
-              <Text numberOfLines={1} style={{ flex: 1, color: colors.text, fontSize: 13, fontWeight: "600" }}>{parseReply([...turns].reverse().find((t) => t.role === "assistant")?.text ?? "").lead || "Tap to open the conversation"}</Text>
+              <Text numberOfLines={1} style={{ flex: 1, color: colors.text, fontSize: 13, fontWeight: "600" }}>{parseReply([...turns].reverse().find((x) => x.role === "assistant")?.text ?? "").lead || t("open_chat")}</Text>
               <Ionicons name="expand-outline" size={16} color={colors.muted} />
             </Pressable>
           ) : (
             <ScrollView ref={(r) => { chatScroll.current = r }} nestedScrollEnabled persistentScrollbar showsVerticalScrollIndicator style={{ maxHeight: Dimensions.get("window").height * 0.42 }} contentContainerStyle={{ paddingRight: 4 }}
               onContentSizeChange={() => chatScroll.current?.scrollToEnd({ animated: true })}>
-              {turns.map((t, i) => t.role === "user" ? <AskBubble key={i} text={t.text} /> : <View key={i} style={{ marginBottom: 12 }}><AiReply text={t.text} /></View>)}
-              {thinking ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}><ActivityIndicator size="small" color={colors.green} /><Muted>Working on it…</Muted></View> : null}
+              {turns.map((x, i) => x.role === "user" ? <AskBubble key={i} text={x.text} /> : <View key={i} style={{ marginBottom: 12 }}><AiReply text={x.text} /></View>)}
+              {thinking ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}><ActivityIndicator size="small" color={colors.green} /><Muted>{t("working")}</Muted></View> : null}
             </ScrollView>
           )}
         </View>
       ) : null}
       {spent ? <AllowanceBanner message={spent} onClose={() => setSpent(null)} /> : null}
       {chatError ? <ErrorNote>{chatError}</ErrorNote> : null}
-      {market !== "forex" && !answer ? <Row style={{ flexWrap: "wrap", marginBottom: 6 }}>{SORTS.map(([k, l]) => <Pill key={k} active={sort === k} onPress={() => setSort(k)}>{l}</Pill>)}</Row> : null}
+      {market !== "forex" && !answer ? <Row style={{ flexWrap: "wrap", marginBottom: 6 }}>{SORTS.map(([k, l]) => <Pill key={k} active={sort === k} onPress={() => setSort(k)}>{t(l)}</Pill>)}</Row> : null}
 
       {res.error ? <ErrorNote>{res.error}</ErrorNote> : null}
-      {!answer && !res.loaded ? <Loading /> : rows.length === 0 ? <Empty title="No matches" text="Try a different search." /> : (
+      {!answer && !res.loaded ? <Loading /> : rows.length === 0 ? <Empty title={t("no_match")} text={t("try_other")} /> : (
         <>
           {rows.map((r) => <AssetRow key={`${r.market}:${r.symbol}`} r={r} cur={cur} onPress={() => router.push(`/asset/${r.market}/${encodeURIComponent(r.symbol)}`)} />)}
-          {answer ? <Muted style={{ textAlign: "center", marginTop: 8 }}>{answer.matched ?? answer.total} match{(answer.matched ?? answer.total) === 1 ? "" : "es"}{answer.total > rows.length ? ` · showing ${rows.length}` : ""}</Muted> : (res.data?.total ?? 0) > rows.length ? <View style={{ marginTop: 6 }}><Button tone="ghost" onPress={() => setSize((n) => n + 40)}>Show more</Button></View> : <Muted style={{ textAlign: "center", marginTop: 8 }}>{res.data?.total} result{res.data?.total === 1 ? "" : "s"}</Muted>}
+          {answer ? <Muted style={{ textAlign: "center", marginTop: 8 }}>{answer.matched ?? answer.total} match{(answer.matched ?? answer.total) === 1 ? "" : "es"}{answer.total > rows.length ? ` · showing ${rows.length}` : ""}</Muted> : (res.data?.total ?? 0) > rows.length ? <View style={{ marginTop: 6 }}><Button tone="ghost" onPress={() => setSize((n) => n + 40)}>{t("show_more")}</Button></View> : <Muted style={{ textAlign: "center", marginTop: 8 }}>{res.data?.total} result{res.data?.total === 1 ? "" : "s"}</Muted>}
         </>
       )}
     </Screen>
     <View style={{ backgroundColor: `${colors.bg}f2`, borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }}>
       {voiceNote ? <Text style={{ color: colors.red, fontSize: 12, marginBottom: 6 }}>{voiceNote}</Text> : null}
-      {choices.length ? (
-        <Pressable onPress={() => setPicking(true)} hitSlop={6} style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, marginBottom: 8 }}>
-          <Ionicons name="hardware-chip-outline" size={14} color={colors.muted} />
-          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>{current?.label ?? "Choose a model"}</Text>
+      <Row style={{ gap: 18, marginBottom: 8 }}>
+        {choices.length ? (
+          <Pressable onPress={() => setPicking(true)} hitSlop={6} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Ionicons name="hardware-chip-outline" size={14} color={colors.muted} />
+            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>{current?.label ?? t("model_title")}</Text>
+            <Ionicons name="chevron-up" size={12} color={colors.muted} />
+          </Pressable>
+        ) : null}
+        <Pressable onPress={() => setPickingLang(true)} hitSlop={6} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Ionicons name="language-outline" size={15} color={colors.muted} />
+          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>{lang.native}</Text>
           <Ionicons name="chevron-up" size={12} color={colors.muted} />
         </Pressable>
-      ) : null}
+      </Row>
       {!turns.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 8 }}>
-          {IDEAS.map((q) => <Pill key={q} onPress={() => void send(q)}>{q}</Pill>)}
+          {IDEAS.map((k) => <Pill key={k} onPress={() => void send(t(k))}>{t(k)}</Pill>)}
         </ScrollView>
       ) : null}
       <Row style={{ gap: 8 }}>
         <View style={{ flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 14 }}>
           <Ionicons name="sparkles" size={16} color={colors.green} />
-          <TextInput value={ask} onChangeText={setAsk} placeholder={hearing ? "Listening…" : "Ask for stocks, e.g. PE under 15 and high ROE"} placeholderTextColor={colors.muted} returnKeyType="send" onSubmitEditing={() => void send(ask)} editable={!thinking} maxLength={1000}
+          <TextInput value={ask} onChangeText={setAsk} placeholder={hearing ? t("listening") : t("ask")} placeholderTextColor={colors.muted} returnKeyType="send" onSubmitEditing={() => void send(ask)} editable={!thinking} maxLength={1000 - ROOM_FOR_REPLY_NOTE}
             style={{ flex: 1, color: colors.text, fontSize: 14.5, paddingVertical: 11, marginLeft: 8 }} />
         </View>
         {canVoice ? (
@@ -175,30 +189,55 @@ export default function Markets() {
         </Pressable>
       </Row>
     </View>
+    <LanguageSheet open={pickingLang} selected={lang.code} onPick={chooseLang} onClose={() => setPickingLang(false)} />
     <ModelSheet open={picking} models={choices} selected={current?.id} onPick={(id) => { setModel(id); setPicking(false) }} onClose={() => setPicking(false)} />
     </KeyboardAvoidingView>
   )
 }
 
-/** The models the member may ask with: the same list as the website, with what each costs in AI requests; premium ones are greyed out on a plan without them. */
-function ModelSheet({ open, models, selected, onPick, onClose }: { open: boolean; models: LlmModel[]; selected?: string; onPick: (id: string) => void; onClose: () => void }) {
+/** The language to speak and to be answered in. The AI is asked to reply in it; stock names and numbers stay as they are. */
+function LanguageSheet({ open, selected, onPick, onClose }: { open: boolean; selected: string; onPick: (l: Language) => void; onClose: () => void }) {
+  const t = useT()
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: "#000000aa" }} onPress={onClose} />
       <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1, borderColor: colors.border, padding: 16, paddingBottom: 28, maxHeight: "70%" }}>
-        <Text style={{ color: colors.text, fontSize: 17, fontWeight: "800", marginBottom: 4 }}>Choose a model</Text>
-        <Muted style={{ marginBottom: 10 }}>Bigger models cost more AI requests per question.</Muted>
+        <Text style={{ color: colors.text, fontSize: 17, fontWeight: "800", marginBottom: 4 }}>{t("lang_title")}</Text>
+        <Muted style={{ marginBottom: 10 }}>{t("lang_sub")}</Muted>
+        <ScrollView>
+          {LANGUAGES.map((l) => (
+            <Pressable key={l.code} onPress={() => onPick(l)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <Text style={{ flex: 1, color: colors.text, fontSize: 16, fontWeight: "700" }}>{l.native}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12.5, marginRight: 10 }}>{l.name}</Text>
+              <Ionicons name={l.code === selected ? "radio-button-on" : "radio-button-off"} size={20} color={l.code === selected ? colors.green : colors.muted} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    </Modal>
+  )
+}
+
+/** The models the member may ask with: the same list as the website, with what each costs in AI requests; premium ones are greyed out on a plan without them. */
+function ModelSheet({ open, models, selected, onPick, onClose }: { open: boolean; models: LlmModel[]; selected?: string; onPick: (id: string) => void; onClose: () => void }) {
+  const t = useT()
+  return (
+    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: "#000000aa" }} onPress={onClose} />
+      <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1, borderColor: colors.border, padding: 16, paddingBottom: 28, maxHeight: "70%" }}>
+        <Text style={{ color: colors.text, fontSize: 17, fontWeight: "800", marginBottom: 4 }}>{t("model_title")}</Text>
+        <Muted style={{ marginBottom: 10 }}>{t("model_sub")}</Muted>
         <ScrollView>
           {models.map((m) => (
             <Pressable key={m.id} onPress={() => (m.locked ? undefined : onPick(m.id))} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, opacity: m.locked ? 0.5 : 1 }}>
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1 }}>{m.label}</Text>
-                  {m.premium ? <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: `${colors.amber}22`, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}><Ionicons name="diamond" size={11} color={colors.amber} /><Text style={{ color: colors.amber, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.4 }}>PREMIUM</Text></View> : null}
+                  {m.premium ? <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: `${colors.amber}22`, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}><Ionicons name="diamond" size={11} color={colors.amber} /><Text style={{ color: colors.amber, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.4 }}>{t("premium")}</Text></View> : null}
                 </View>
-                <Muted>{m.locked ? "Not included in your plan" : m.note || (m.tier ?? "")}</Muted>
+                <Muted>{m.locked ? t("not_in_plan") : m.note || (m.tier ?? "")}</Muted>
               </View>
-              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", marginRight: 10 }}>{m.cost} {m.cost === 1 ? "request" : "requests"}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", marginRight: 10 }}>{m.cost === 1 ? t("req1") : t("req", { n: m.cost })}</Text>
               {m.locked ? <Ionicons name="lock-closed" size={16} color={colors.muted} /> : <Ionicons name={m.id === selected ? "radio-button-on" : "radio-button-off"} size={20} color={m.id === selected ? colors.green : colors.muted} />}
             </Pressable>
           ))}

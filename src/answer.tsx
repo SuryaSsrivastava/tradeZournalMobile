@@ -3,6 +3,7 @@ import { useState } from "react"
 import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from "react-native"
 import { colors } from "./theme"
 import { tick } from "./fx"
+import { useT } from "./i18n"
 
 if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true)
 
@@ -25,6 +26,7 @@ export function parseReply(text: string) {
 
 /** What the assistant says, laid out: the sentence that sums it up, the filters it used as chips (tap to see why each was chosen), and the caution small at the bottom. */
 export function AiReply({ text }: { text: string }) {
+  const t = useT()
   const { lead, items, note } = parseReply(text)
   const [open, setOpen] = useState(false)
   const toggle = () => { tick(); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v) }
@@ -34,7 +36,7 @@ export function AiReply({ text }: { text: string }) {
         <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: `${colors.green}22`, alignItems: "center", justifyContent: "center" }}>
           <Ionicons name="sparkles" size={13} color={colors.green} />
         </View>
-        <Text style={{ color: colors.green, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginLeft: 8 }}>HERE IS WHAT I DID</Text>
+        <Text style={{ color: colors.green, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginLeft: 8 }}>{t("did")}</Text>
       </View>
       <Text style={{ color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: "600" }}>{lead || text}</Text>
 
@@ -63,7 +65,7 @@ export function AiReply({ text }: { text: string }) {
           ) : null}
           {items.some((i) => i.why) ? (
             <Pressable onPress={toggle} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", marginTop: 12, alignSelf: "flex-start" }}>
-              <Text style={{ color: colors.green, fontSize: 12.5, fontWeight: "800" }}>{open ? "Hide the reasons" : "Why these filters?"}</Text>
+              <Text style={{ color: colors.green, fontSize: 12.5, fontWeight: "800" }}>{open ? t("hide") : t("why")}</Text>
               <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={colors.green} style={{ marginLeft: 4 }} />
             </Pressable>
           ) : null}

@@ -18,6 +18,7 @@ import { OfflineBanner } from "../src/offlinebanner"
 import { ScopeProvider } from "../src/scope"
 import { Toaster } from "../src/toast"
 import { colors } from "../src/theme"
+import { LanguageProvider } from "../src/i18n"
 import { ThemeProvider, useTheme } from "../src/themeprovider"
 import { takeReopenSettings } from "../src/themeflag"
 
@@ -143,7 +144,7 @@ export default function Root() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <ThemeProvider>{() => <Themed />}</ThemeProvider>
+        <LanguageProvider><ThemeProvider>{() => <Themed />}</ThemeProvider></LanguageProvider>
       </AuthProvider>
     </SafeAreaProvider>
   )

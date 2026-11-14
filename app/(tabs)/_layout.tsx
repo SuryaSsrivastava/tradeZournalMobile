@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { AppState, type ColorValue } from "react-native"
 import { api } from "../../src/api"
 import { registerForPush } from "../../src/push"
+import { useT } from "../../src/i18n"
 import { TabBar } from "../../src/tabbar"
 import { colors } from "../../src/theme"
 
@@ -13,6 +14,7 @@ const icon = (name: IconName, focused: IconName) => ({ color, focused: f, size }
 
 export default function TabsLayout() {
   const [unread, setUnread] = useState(0)
+  const t = useT()
 
   // the number on the Alerts tab: now, every minute while the app is open, and whenever a notification arrives
   useEffect(() => {
@@ -35,11 +37,11 @@ export default function TabsLayout() {
       headerShown: false, animation: "fade", tabBarActiveTintColor: colors.green, tabBarInactiveTintColor: colors.muted,
       tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border }, tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
     }}>
-      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: icon("home-outline", "home") }} />
-      <Tabs.Screen name="journal" options={{ title: "Journal", tabBarIcon: icon("book-outline", "book") }} />
-      <Tabs.Screen name="markets" options={{ title: "Screener", tabBarIcon: icon("funnel-outline", "funnel") }} />
-      <Tabs.Screen name="invest" options={{ title: "Portfolio", tabBarIcon: icon("pie-chart-outline", "pie-chart") }} />
-      <Tabs.Screen name="more" options={{ title: "More", tabBarIcon: icon("grid-outline", "grid"), tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined }} />
+      <Tabs.Screen name="index" options={{ title: t("tab_home"), tabBarIcon: icon("home-outline", "home") }} />
+      <Tabs.Screen name="journal" options={{ title: t("tab_journal"), tabBarIcon: icon("book-outline", "book") }} />
+      <Tabs.Screen name="markets" options={{ title: t("tab_screener"), tabBarIcon: icon("funnel-outline", "funnel") }} />
+      <Tabs.Screen name="invest" options={{ title: t("tab_portfolio"), tabBarIcon: icon("pie-chart-outline", "pie-chart") }} />
+      <Tabs.Screen name="more" options={{ title: t("tab_more"), tabBarIcon: icon("grid-outline", "grid"), tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined }} />
     </Tabs>
   )
 }
