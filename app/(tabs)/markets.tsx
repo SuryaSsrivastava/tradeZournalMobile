@@ -10,6 +10,7 @@ import { AiReply, AskBubble, parseReply } from "../../src/answer"
 import { AllowanceBanner } from "../../src/upgrade"
 import { LANGUAGES, ROOM_FOR_REPLY_NOTE, replyIn, type Language } from "../../src/languages"
 import { useLang, useT } from "../../src/i18n"
+import { hush } from "../../src/speak"
 import { listen, voiceAvailable } from "../../src/voice"
 import { colors, radius } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
@@ -67,6 +68,7 @@ export default function Markets() {
   useEffect(() => () => { stopListening.current?.() }, [])
   const mic = async () => {
     if (hearing) { stopListening.current?.(); return }
+    hush()  // never talk over the person speaking
     setVoiceNote(null)
     const base = ask.trim()
     setHearing(true)

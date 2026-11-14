@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from "react-native"
 import type { ScreenSpec } from "./api"
 import { colors } from "./theme"
 import { tick } from "./fx"
-import { useT } from "./i18n"
+import { useLang, useT } from "./i18n"
+import { hush, say, speechAvailable } from "./speak"
 
 if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true)
 
@@ -13,8 +14,10 @@ export function parseReply(text: string) {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
   const isItem = (l: string) => /^[-•*]\s+/.test(l)
   const first = lines.findIndex(isItem)
+  // the server's own opening line, in English whatever the language of the rest: it only introduces the list, so it is not shown
+  const intro = /\s*here is what i would look at,? based on these criteria:?\s*/i
   if (first < 0) {
-    const sentences = text.replace(/^here is what i did:\s*/i, "").trim().split(/(?<=[.!?।])\s+/).filter(Boolean)
+    const sentences = text.replace(/^here is what i did:\s*/i, "").replace(intro, " ").trim().split(/(?<=[.!?।])\s+/).filter(Boolean)
     const cautionAt = sentences.findIndex((x, i) => i > 0 && /research further|guarantee|not (a )?(financial |investment )?advice|no assurance/i.test(x))
     const note = cautionAt > 0 ? sentences.slice(cautionAt).join(" ") : ""
     const kept = cautionAt > 0 ? sentences.slice(0, cautionAt) : sentences
@@ -22,7 +25,7 @@ export function parseReply(text: string) {
   }
   let last = first
   while (last + 1 < lines.length && isItem(lines[last + 1])) last++
-  const lead = lines.slice(0, first).join(" ").replace(/^here is what i did:\s*/i, "").trim()
+  const lead = lines.slice(0, first).join(" ").replace(/^here is what i did:\s*/i, "").replace(intro, " ").trim()
   const items = lines.slice(first, last + 1).map((l) => {
     const body = l.replace(/^[-•*]\s+/, "")
     const at = body.indexOf(": ")
@@ -48,7 +51,20 @@ export function specChips(spec: ScreenSpec | undefined, labels: Record<string, s
 /** What the assistant says, laid out: the sentence that sums it up, the filters it used as chips (and, when the model explained each one, a tap to see why), the rest of the explanation, and the caution small at the bottom. */
 export function AiReply({ text, spec, labels }: { text: string; spec?: ScreenSpec; labels?: Record<string, string> }) {
   const t = useT()
+  const { lang } = useLang()
   const { lead, body, items, note } = parseReply(text)
+  const [speaking, setSpeaking] = useState(false)
+  const [voiceNote, setVoiceNote] = useState<string | null>(null)
+  useEffect(() => () => { if (speaking) hush() }, [speaking])  // leaving the screen stops the voice
+  const speak = async () => {
+    tick()
+    if (speaking) { hush(); setSpeaking(false); return }
+    setVoiceNote(null)
+    const spoken = [lead, body, ...items.map((i) => (i.why ? `${i.title}. ${i.why}` : i.title))].filter(Boolean).join(". ").replace(/[*_`#]/g, "")
+    setSpeaking(true)
+    const r = await say(spoken, lang.speech, { onDone: () => setSpeaking(false) })
+    if (r !== "ok") { setSpeaking(false); if (r === "no-voice") setVoiceNote(t("no_voice")) }
+  }
   const chips = items.length ? items.map((i) => i.title) : specChips(spec, labels ?? {})
   const [open, setOpen] = useState(false)
   const toggle = () => { tick(); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v) }
@@ -58,8 +74,14 @@ export function AiReply({ text, spec, labels }: { text: string; spec?: ScreenSpe
         <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: `${colors.green}22`, alignItems: "center", justifyContent: "center" }}>
           <Ionicons name="sparkles" size={13} color={colors.green} />
         </View>
-        <Text style={{ color: colors.green, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginLeft: 8 }}>{t("did")}</Text>
+        <Text style={{ color: colors.green, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginLeft: 8, flex: 1 }}>{t("did")}</Text>
+        {speechAvailable() ? (
+          <Pressable onPress={() => void speak()} hitSlop={12} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: speaking ? colors.green : `${colors.green}1f`, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name={speaking ? "stop" : "volume-high"} size={15} color={speaking ? "#04110b" : colors.green} />
+          </Pressable>
+        ) : null}
       </View>
+      {voiceNote ? <Text style={{ color: colors.amber, fontSize: 11.5, lineHeight: 16, marginBottom: 8 }}>{voiceNote}</Text> : null}
       <Text style={{ color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: "600" }}>{lead || text}</Text>
       {body ? <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 6 }}>{body}</Text> : null}
 

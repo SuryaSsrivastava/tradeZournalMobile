@@ -19,6 +19,10 @@ export const LANGUAGES: Language[] = [
 
 export const languageOf = (code: string | null | undefined): Language => LANGUAGES.find((l) => l.code === code) ?? LANGUAGES[0]
 
-/** What is added to a message so the answer comes back in the chosen language (nothing for English). */
-export const replyIn = (l: Language) => (l.code === "en" ? "" : `\n\n(Reply in ${l.name} using ${l.name} script. Keep the same line-by-line format with "- " lines; keep stock names and numbers as they are.)`)
-export const ROOM_FOR_REPLY_NOTE = 160  // characters of the 1000 the server accepts that this note may take
+/**
+ * What is added to every message: the shape the answer should have (a summing-up line, one "- " line per filter with why it matters, a closing caution), which the answer card lays out, and
+ * for a language other than English the language to write it in. Without it the model often answers in one plain paragraph.
+ */
+const SHAPE = 'Write the reply as: one first line saying what you did; then one line per filter, each starting with "- ", giving the threshold and in a few words why it matters; then a last line (not starting with "- ") saying these are screens to research further, not guaranteed winners.'
+export const replyIn = (l: Language) => `\n\n(${l.code === "en" ? "" : `Reply in ${l.name} using ${l.name} script; keep stock names and numbers as they are. `}${SHAPE})`
+export const ROOM_FOR_REPLY_NOTE = 380  // characters of the 1000 the server accepts that this note may take (the longest, with a language, is about 365)
