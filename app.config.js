@@ -16,7 +16,7 @@ module.exports = {
     scheme: "tradezournal",
     version: "1.0.0",
     orientation: "portrait",
-    userInterfaceStyle: "dark",
+    userInterfaceStyle: "automatic",
     icon: "./assets/icon.png",
     backgroundColor: "#0b0e14",
     splash: { image: "./assets/splash.png", resizeMode: "contain", backgroundColor: "#0b0e14" },

@@ -4,13 +4,15 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleShee
 import { SafeAreaView } from "react-native-safe-area-context"
 import { apiServer, resendCode, saveServer, validServer, type CodeChallenge } from "../src/api"
 import { useAuth } from "../src/auth"
-import { colors, radius } from "../src/theme"
+import { colors, radius, themed } from "../src/theme"
 import { Brand, Button, ErrorNote } from "../src/ui"
 
 export default function Login() {
-  const { signIn, verify, signInWithGoogle } = useAuth()
+  const { signIn, register, verify, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [creating, setCreating] = useState(false)  // "Create account" instead of "Sign in"
+  const [again2, setAgain2] = useState("")
   const [busy, setBusy] = useState(false)
   const [googleBusy, setGoogleBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,16 +35,18 @@ export default function Login() {
 
   const submit = async () => {
     if (!email.trim() || !password) { setError("Enter your email and password."); return }
+    if (creating && password.length < 8) { setError("Use at least 8 characters for the password."); return }
+    if (creating && password !== again2) { setError("The two passwords are not the same."); return }
     setBusy(true); setError(null)
     try {
       if (__DEV__ && advanced) {
         if (!validServer(server)) { setError("The server must be a full address, like https://tradezournal.com/api/v1"); return }
         await saveServer(server)
       }
-      const c = await signIn(email, password)
+      const c = creating ? await register(email, password) : await signIn(email, password)
       if (c) { setChallenge(c); setWait(45) }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not sign in.")
+      setError(e instanceof Error ? e.message : creating ? "Could not create the account." : "Could not sign in.")
     } finally {
       setBusy(false)
     }
@@ -65,7 +69,7 @@ export default function Login() {
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.wrap}>
           <Text style={s.h1}>Check your email</Text>
-          <Text style={s.p}>We sent a 6-digit code to {challenge.email}. We ask for it when you sign in from a phone we have not seen, so a stolen password alone cannot open your account.</Text>
+          <Text style={s.p}>We sent a 6-digit code to {challenge.email}. We ask for it to confirm your address, and whenever you sign in from a phone we have not seen, so a stolen password alone cannot open your account.</Text>
           <View style={{ height: 22 }} />
           {error ? <ErrorNote>{error}</ErrorNote> : null}
           {note ? <Text style={{ color: colors.green, fontSize: 13, marginBottom: 10 }}>{note}</Text> : null}
@@ -85,12 +89,16 @@ export default function Login() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={s.wrap}>
         <View style={{ alignItems: "flex-start", marginBottom: 22 }}><Brand size={64} /></View>
         <Text style={s.h1}>Your trading journal, live trades and alerts, in your pocket.</Text>
-        <Text style={s.p}>Sign in with the account you use on the website.</Text>
+        <Text style={s.p}>{creating ? "Create your free account. It works on the website too." : "Sign in with the account you use on the website."}</Text>
         <View style={{ height: 22 }} />
         {error ? <ErrorNote>{error}</ErrorNote> : null}
         <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" style={s.input} />
-        <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor={colors.muted} secureTextEntry textContentType="password" onSubmitEditing={submit} returnKeyType="go" style={s.input} />
-        <Button onPress={submit} busy={busy}>Sign in</Button>
+        <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor={colors.muted} secureTextEntry textContentType={creating ? "newPassword" : "password"} onSubmitEditing={creating ? undefined : submit} returnKeyType={creating ? "next" : "go"} style={s.input} />
+        {creating ? <TextInput value={again2} onChangeText={setAgain2} placeholder="Repeat the password" placeholderTextColor={colors.muted} secureTextEntry textContentType="newPassword" onSubmitEditing={submit} returnKeyType="go" style={s.input} /> : null}
+        <Button onPress={submit} busy={busy}>{creating ? "Create account" : "Sign in"}</Button>
+        <Pressable onPress={() => { setCreating((v) => !v); setError(null); setAgain2("") }} style={{ marginTop: 14, alignSelf: "center" }}>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>{creating ? "Already have an account? " : "New here? "}<Text style={{ color: colors.green, fontWeight: "700" }}>{creating ? "Sign in" : "Create an account"}</Text></Text>
+        </Pressable>
         <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 18 }}>
           <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
           <Text style={{ color: colors.muted, fontSize: 12, marginHorizontal: 12 }}>or</Text>
@@ -112,10 +120,10 @@ export default function Login() {
   )
 }
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   wrap: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
   brand: { color: colors.green, fontSize: 12, fontWeight: "800", letterSpacing: 4, marginBottom: 14 },
   h1: { color: colors.text, fontSize: 30, fontWeight: "800", letterSpacing: -0.6, lineHeight: 34 },
   p: { color: colors.muted, fontSize: 14, marginTop: 8 },
   input: { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, marginBottom: 12 },
-})
+}))

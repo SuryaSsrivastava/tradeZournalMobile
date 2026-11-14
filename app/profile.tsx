@@ -1,7 +1,8 @@
+import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react"
 import { Alert, Text, View } from "react-native"
 import { useRouter } from "expo-router"
-import { api } from "../src/api"
+import { api, logoutAll, type LoginDevice } from "../src/api"
 import { useAuth } from "../src/auth"
 import { CAN_SELL } from "../src/config"
 import { CheckMark } from "../src/delight"
@@ -107,6 +108,8 @@ export default function Profile() {
         {CAN_SELL ? <View style={{ marginTop: 14 }}><Button tone="ghost" onPress={() => router.push("/plans" as never)}>{user?.plan === "starter" ? "See plans and upgrade" : "Manage my plan"}</Button></View> : null}
       </Card>
 
+      <Devices />
+
       <Password hasPassword={user?.has_password !== false} />
 
       <Button tone="danger" onPress={out}>Sign out</Button>
@@ -185,6 +188,68 @@ function Password({ hasPassword }: { hasPassword: boolean }) {
           <View style={{ marginTop: 8 }}><Button tone="ghost" onPress={() => { setOpen(false); setNote(null) }}>Cancel</Button></View>
         </>
       )}
+    </Card>
+  )
+}
+
+const STATUS: Record<LoginDevice["status"], { text: string; color: () => string }> = {
+  signed_in: { text: "Signed in", color: () => colors.green },
+  signed_out: { text: "Signed out", color: () => colors.muted },
+  expired: { text: "Session expired", color: () => colors.muted },
+}
+const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "")
+
+/** Where this account is signed in: each phone and browser, when it last signed in, and a way to sign one (or all the others) out. */
+function Devices() {
+  const list = useLoad(() => api.devices())
+  const [busy, setBusy] = useState<number | "all" | null>(null)
+  const [note, setNote] = useState<Note>(null)
+  const rows = list.data ?? []
+  const others = rows.filter((d) => !d.current && d.status === "signed_in").length
+
+  const out = (d: LoginDevice) => Alert.alert("Sign out this device?", `${d.label} will be signed out of your account.`, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Sign out", style: "destructive", onPress: async () => {
+      setBusy(d.id); setNote(null)
+      try { await api.signOutDevice(d.id); await list.refresh() } catch (e) { setNote({ ok: false, text: e instanceof Error ? e.message : "Could not sign that device out." }) } finally { setBusy(null) }
+    } },
+  ])
+  const outAll = () => Alert.alert("Sign out everywhere else?", "Every other phone and browser will be signed out. This phone stays signed in.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Sign out others", style: "destructive", onPress: async () => {
+      setBusy("all"); setNote(null)
+      try { await logoutAll(); await list.refresh(); setNote({ ok: true, text: "Signed out everywhere else." }) } catch (e) { setNote({ ok: false, text: e instanceof Error ? e.message : "Could not sign the others out." }) } finally { setBusy(null) }
+    } },
+  ])
+
+  return (
+    <Card delay={200}>
+      <Label>Where you are signed in</Label>
+      <Say n={note} />
+      {list.error ? <ErrorNote>{list.error}</ErrorNote> : null}
+      {!list.loaded ? <Loading /> : rows.length === 0 ? <Muted>No devices yet.</Muted> : (
+        <View style={{ gap: 14, marginTop: 4 }}>
+          {rows.map((d) => {
+            const st = STATUS[d.status]
+            return (
+              <View key={d.id} style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: `${st.color()}22`, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                  <Ionicons name={d.app ? "phone-portrait-outline" : "desktop-outline"} size={19} color={st.color()} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>{d.label}{d.current ? " · this phone" : ""}</Text>
+                  <Muted numberOfLines={1}><Text style={{ color: st.color(), fontWeight: "700" }}>{st.text}</Text> · last sign-in {when(d.last_signin_at)}</Muted>
+                  <Muted numberOfLines={1}>{d.last_ip || d.ip ? `${d.last_ip || d.ip} · ` : ""}{d.last_used_at ? `last used ${when(d.last_used_at)}` : `first seen ${when(d.first_seen_at)}`}</Muted>
+                </View>
+                {!d.current && d.status === "signed_in" ? (
+                  <Text onPress={busy ? undefined : () => out(d)} style={{ color: colors.red, fontSize: 13, fontWeight: "700", paddingLeft: 10, opacity: busy === d.id ? 0.5 : 1 }}>Sign out</Text>
+                ) : null}
+              </View>
+            )
+          })}
+        </View>
+      )}
+      {others > 0 ? <View style={{ marginTop: 16 }}><Button tone="ghost" onPress={outAll} busy={busy === "all"}>Sign out everywhere else</Button></View> : null}
     </Card>
   )
 }

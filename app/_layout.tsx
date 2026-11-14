@@ -18,6 +18,8 @@ import { OfflineBanner } from "../src/offlinebanner"
 import { ScopeProvider } from "../src/scope"
 import { Toaster } from "../src/toast"
 import { colors } from "../src/theme"
+import { ThemeProvider, useTheme } from "../src/themeprovider"
+import { takeReopenSettings } from "../src/themeflag"
 
 // the share handler, when this build has the native module (older development builds do not)
 type ShareState = { hasShareIntent: boolean; shareIntent: { files?: SharedFile[] | null }; resetShareIntent: () => void }
@@ -32,6 +34,9 @@ function Gate() {
   const segments = useSegments()
   const router = useRouter()
   const { hasShareIntent, shareIntent, resetShareIntent } = useShare()
+
+  // the theme was just changed: the screens were drawn again from the start, so go back to Settings where the choice was made
+  useEffect(() => { if (ready && user && takeReopenSettings()) setTimeout(() => router.push("/settings"), 0) }, [ready, user, router])
 
   // a picture was shared to the app: open "Add to a trade" (once signed in)
   useEffect(() => {
@@ -123,13 +128,22 @@ function Gate() {
   )
 }
 
+function Themed() {
+  const { scheme } = useTheme()
+  return (
+    <>
+      <StatusBar style={scheme === "light" ? "dark" : "light"} />
+      <ScopeProvider key={scheme}><LockProvider><Gate /><OfflineBanner /><Toaster /></LockProvider></ScopeProvider>
+      <AnimatedSplash />
+    </>
+  )
+}
+
 export default function Root() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <StatusBar style="light" />
-        <ScopeProvider><LockProvider><Gate /><OfflineBanner /><Toaster /></LockProvider></ScopeProvider>
-        <AnimatedSplash />
+        <ThemeProvider>{() => <Themed />}</ThemeProvider>
       </AuthProvider>
     </SafeAreaProvider>
   )

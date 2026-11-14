@@ -8,7 +8,9 @@ import { livePreviewAvailable, startLivePreview, stopLivePreview } from "../src/
 import { useLock } from "../src/lock"
 import { registerForPush, unregisterPush } from "../src/push"
 import { colors } from "../src/theme"
-import { Button, Card, ErrorNote, Label, Muted, Row, Screen } from "../src/ui"
+import { markReopenSettings } from "../src/themeflag"
+import { useTheme } from "../src/themeprovider"
+import { Button, Card, ErrorNote, Label, Muted, Pill, Row, Screen } from "../src/ui"
 
 export default function Settings() {
   const { user, signOut } = useAuth()
@@ -20,6 +22,7 @@ export default function Settings() {
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState<"push" | "test" | null>(null)
   const lock = useLock()
+  const theme = useTheme()
   const [lockNote, setLockNote] = useState<{ ok: boolean; text: string } | null>(null)
   const toggleLock = async (on: boolean) => { const r = await lock.setEnabled(on); setLockNote({ ok: r.ok, text: r.message }) }
 
@@ -92,6 +95,15 @@ export default function Settings() {
         <Label>Signed in as</Label>
         <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>{user?.name || user?.email}</Text>
         <Muted>{user?.email} · {user?.plan} plan</Muted>
+      </Card>
+
+      <Card>
+        <Label>Appearance</Label>
+        <Row>
+          {(["system", "dark", "light"] as const).map((m) => (
+            <Pill key={m} active={theme.mode === m} onPress={() => { if (theme.mode !== m) { markReopenSettings(); theme.setMode(m) } }}>{m === "system" ? "Match phone" : m === "dark" ? "Dark" : "Light"}</Pill>
+          ))}
+        </Row>
       </Card>
 
       <Card>

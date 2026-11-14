@@ -6,7 +6,7 @@ import Svg, { Circle, Path } from "react-native-svg"
 import type { JournalTrade } from "./api"
 import { badges, type Badge } from "./badges"
 import { useReducedMotion } from "./fx"
-import { colors } from "./theme"
+import { colors, themed } from "./theme"
 
 /** A firm tap for good news (a badge, a saved alert). Silent where the phone has no haptics. */
 export const success = () => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}) }
@@ -43,7 +43,7 @@ export function CheckMark({ size = 22, color = colors.green }: { size?: number; 
   )
 }
 
-const PALETTE = [colors.green, colors.amber, colors.blue, "#a78bfa", "#f472b6", colors.red]
+const PALETTE = themed(() => [colors.green, colors.amber, colors.blue, "#a78bfa", "#f472b6", colors.red])
 
 /** A burst of confetti from the middle of its box, falling away. Fires once when it appears. */
 export function Confetti({ count = 26, height = 260 }: { count?: number; height?: number }) {

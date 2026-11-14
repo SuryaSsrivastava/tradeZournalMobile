@@ -52,7 +52,7 @@ export function OfferTile({ label, endsAt, best }: { label: string; endsAt: stri
   return (
     <Rise>
       <LinearGradient colors={[accent, "#f472b6", "#a78bfa", accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.lg + 2, padding: 1.5, marginBottom: 12 }}>
-        <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ borderRadius: radius.lg, overflow: "hidden", backgroundColor: "#16121c", padding: 16 }}>
+        <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.offer, padding: 16 }}>
           <LinearGradient colors={[`${accent}33`, "#a78bfa14", "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           {reduced ? null : (
             <>

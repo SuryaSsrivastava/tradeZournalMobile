@@ -2,7 +2,7 @@ import { ActivityIndicator, Animated, Image, Pressable, RefreshControl, StyleShe
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRef, type ReactNode } from "react"
 import { Ambient, Glass, Rise, Skeleton } from "./fx"
-import { colors, radius } from "./theme"
+import { colors, radius, themed } from "./theme"
 
 export function Screen({ children, refreshing, onRefresh, scroll = true, padTop = true }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; padTop?: boolean }) {
   const insets = useSafeAreaInsets()
@@ -91,7 +91,7 @@ export const Row = ({ children, style }: { children: ReactNode; style?: StylePro
 
 export const tone = (n: number | null | undefined) => (n == null || n === 0 ? colors.text : n > 0 ? colors.green : colors.red)
 
-const s = StyleSheet.create({
+const s = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   title: { color: colors.text, fontSize: 26, fontWeight: "700", letterSpacing: -0.4 },
   sub: { color: colors.muted, fontSize: 13, marginTop: 2 },
@@ -105,7 +105,7 @@ const s = StyleSheet.create({
   empty: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24 },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },
   error: { backgroundColor: `${colors.red}18`, borderColor: `${colors.red}55`, borderWidth: 1, borderRadius: radius.md, padding: 12, marginBottom: 12 },
-})
+}))
 
 export function Field({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
   return (

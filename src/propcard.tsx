@@ -3,11 +3,11 @@ import { Text, View } from "react-native"
 import Svg, { Circle } from "react-native-svg"
 import type { Account } from "./api"
 import { Press } from "./fx"
-import { colors } from "./theme"
+import { colors, themed } from "./theme"
 import { Card, Label } from "./ui"
 
 type Prop = NonNullable<Account["prop"]>
-const STATE_COLOR = { ok: colors.green, warn: colors.amber, breached: colors.red } as const
+const STATE_COLOR = themed(() => ({ ok: colors.green, warn: colors.amber, breached: colors.red } as const))
 
 const short = (n: number, currency?: string | null) => {
   const sym = !currency || currency === "USD" ? "$" : currency === "INR" ? "₹" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : ""

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { AppState } from "react-native"
-import { api, forgetSession, googleSignIn, login as apiLogin, restoreSession, setUnauthorizedHandler, verifyCode as apiVerify, type CodeChallenge, type User } from "./api"
+import { api, forgetSession, googleSignIn, login as apiLogin, register as apiRegister, restoreSession, setUnauthorizedHandler, verifyCode as apiVerify, type CodeChallenge, type User } from "./api"
 import { stopLiveNotification } from "./liveservice"
 import { setBackOnlineHandler } from "./net"
 import { flushOutbox, resetOutbox, takeFailed } from "./outbox"
@@ -8,7 +8,7 @@ import { unregisterPush } from "./push"
 import { setOwner, wipeAll } from "./store"
 import { showToast } from "./toast"
 
-type AuthState = { user: User | null; ready: boolean; signIn: (email: string, password: string) => Promise<CodeChallenge | null>; verify: (challenge: string, code: string) => Promise<void>; signInWithGoogle: () => Promise<boolean>; signOut: () => Promise<void>; update: (u: User) => void }
+type AuthState = { user: User | null; ready: boolean; signIn: (email: string, password: string) => Promise<CodeChallenge | null>; register: (email: string, password: string) => Promise<CodeChallenge | null>; verify: (challenge: string, code: string) => Promise<void>; signInWithGoogle: () => Promise<boolean>; signOut: () => Promise<void>; update: (u: User) => void }
 const Ctx = createContext<AuthState | null>(null)
 
 /** Send what was saved while offline and say so. */
@@ -51,16 +51,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     put(r)
     return null
   }, [put])
+  const register = useCallback(async (email: string, password: string) => {
+    const r = await apiRegister(email, password)
+    if ("verify_required" in r) return r
+    put(r)
+    return null
+  }, [put])
   const verify = useCallback(async (challenge: string, code: string) => { put(await apiVerify(challenge, code)) }, [put])
   const signInWithGoogle = useCallback(async () => { const u = await googleSignIn(); if (u) put(u); return !!u }, [put])
   const signOut = useCallback(async () => {
     await flushOutbox().catch(() => 0) // anything saved offline goes up first
     await stopLiveNotification() // and the live trades in the notification bar
     await unregisterPush() // stop notifications to this phone before the session goes
+    await api.logout().catch(() => {}) // so the list of devices on the account shows this phone as signed out
     clear()
   }, [clear])
 
-  const value = useMemo(() => ({ user, ready, signIn, verify, signInWithGoogle, signOut, update: put }), [user, ready, signIn, verify, signInWithGoogle, signOut, put])
+  const value = useMemo(() => ({ user, ready, signIn, register, verify, signInWithGoogle, signOut, update: put }), [user, ready, signIn, register, verify, signInWithGoogle, signOut, put])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

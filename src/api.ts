@@ -149,6 +149,19 @@ export async function login(email: string, password: string): Promise<User | Cod
   return "verify_required" in r ? r : startSession(r)
 }
 
+export async function register(email: string, password: string): Promise<User | CodeChallenge> {
+  const r = await request<{ user: User; access_token: string } | CodeChallenge>("/auth/register", { method: "POST", body: JSON.stringify({ email: email.trim(), password }) }, false)
+  return "verify_required" in r ? r : startSession(r)
+}
+
+export type LoginDevice = { id: number; label: string; ip: string | null; app: boolean; status: "signed_in" | "expired" | "signed_out"; current: boolean; first_seen_at: string; last_signin_at: string; last_used_at: string | null; last_ip: string | null }
+
+/** Sign out of every device. This phone is given a fresh session in the answer, so it stays signed in. */
+export async function logoutAll(): Promise<void> {
+  const r = await request<{ user: User; access_token: string }>("/auth/logout-all", { method: "POST" })
+  await startSession(r)
+}
+
 export async function verifyCode(challenge: string, code: string): Promise<User> {
   return startSession(await request<{ user: User; access_token: string }>("/auth/verify", { method: "POST", body: JSON.stringify({ challenge, code }) }, false))
 }
@@ -185,6 +198,9 @@ export async function googleSignIn(): Promise<User | null> {
 
 export const api = {
   me: () => request<User>("/auth/me"),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
+  devices: () => request<{ devices: LoginDevice[] }>("/auth/devices").then((r) => r.devices),
+  signOutDevice: (id: number) => request<void>(`/auth/devices/${id}`, { method: "DELETE" }),
   updateProfile: (b: { name?: string; timezone?: string }) => request<User>("/auth/me", { method: "PATCH", body: JSON.stringify(b) }),
   changePassword: (current: string | null, next: string) => request<void>("/auth/password", { method: "POST", body: JSON.stringify({ current_password: current, new_password: next }) }),
   planUsage: () => request<PlanUsage>("/plans/usage"),

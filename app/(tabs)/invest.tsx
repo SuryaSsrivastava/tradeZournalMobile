@@ -6,7 +6,7 @@ import { BrokerLogin, ConnectBroker, loginUrl } from "../../src/broker"
 import { Bar, CountUp, Hero, Press, Rise, Ring, Sparkline, Stat } from "../../src/fx"
 import { ago, money } from "../../src/format"
 import { useLoad } from "../../src/hooks"
-import { colors } from "../../src/theme"
+import { colors, themed } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 
 type Tab = "holdings" | "watchlist" | "orders"
@@ -117,7 +117,7 @@ export default function Invest() {
   )
 }
 
-const PALETTE = [colors.green, colors.blue, "#6366f1", colors.amber, "#f472b6"]
+const PALETTE = themed(() => [colors.green, colors.blue, "#6366f1", colors.amber, "#f472b6"])
 
 /** Where the money sits: a ring of the biggest holdings, the rest grouped, with a legend. */
 function Allocation({ holdings, total }: { holdings: Holding[]; total: number }) {

@@ -19,7 +19,7 @@ import { BadgeToast, useNewBadges } from "../../src/delight"
 import { PropCard } from "../../src/propcard"
 import { showToast } from "../../src/toast"
 import { StreakCard, WeekCard } from "../../src/progress"
-import { colors, impactColor, radius } from "../../src/theme"
+import { colors, impactColor, radius, themed } from "../../src/theme"
 import { Brand, Card, Label, Loading, Muted, Row, Screen, tone } from "../../src/ui"
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"]
@@ -176,8 +176,8 @@ export default function Home() {
                 <Muted style={{ marginTop: 3 }}>{next.data.currency} · {dayLabel(next.data.time)} {clock(next.data.time)}</Muted>
                 {next.data.forecast || next.data.previous ? (
                   <Row style={{ gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                    {next.data.forecast ? <View style={chip}><Text style={{ color: colors.muted, fontSize: 11 }}>Forecast <Text style={{ color: colors.text, fontWeight: "700" }}>{next.data.forecast}</Text></Text></View> : null}
-                    {next.data.previous ? <View style={chip}><Text style={{ color: colors.muted, fontSize: 11 }}>Previous <Text style={{ color: colors.text, fontWeight: "700" }}>{next.data.previous}</Text></Text></View> : null}
+                    {next.data.forecast ? <View style={{ ...chip }}><Text style={{ color: colors.muted, fontSize: 11 }}>Forecast <Text style={{ color: colors.text, fontWeight: "700" }}>{next.data.forecast}</Text></Text></View> : null}
+                    {next.data.previous ? <View style={{ ...chip }}><Text style={{ color: colors.muted, fontSize: 11 }}>Previous <Text style={{ color: colors.text, fontWeight: "700" }}>{next.data.previous}</Text></Text></View> : null}
                   </Row>
                 ) : null}
               </View>
@@ -197,7 +197,7 @@ export default function Home() {
   )
 }
 
-const chip = { borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 4 } as const
+const chip = themed(() => ({ borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 4 } as const))
 
 function Quick({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return (

@@ -14,7 +14,7 @@ import { SwipeRow } from "../../src/swipe"
 import { showToast } from "../../src/toast"
 import { success } from "../../src/delight"
 import { inMode, inScope, ScopeBar, useScope } from "../../src/scope"
-import { colors, radius } from "../../src/theme"
+import { colors, radius, themed } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 
 const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
@@ -181,11 +181,11 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
                 <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800" }}>{st.winRate.toFixed(0)}%</Text><Muted>win rate</Muted>
               </Ring>
               <View style={{ flex: 1, gap: 8 }}>
-                <Row style={{ justifyContent: "space-between" }}><Row><Dot c={colors.green} /><Text style={lbl}>Wins</Text></Row><Text style={[val, { color: colors.green }]}>{st.wins}</Text></Row>
-                <Row style={{ justifyContent: "space-between" }}><Row><Dot c={colors.red} /><Text style={lbl}>Losses</Text></Row><Text style={[val, { color: colors.red }]}>{st.losses}</Text></Row>
-                <Row style={{ justifyContent: "space-between" }}><Text style={lbl}>Best trade</Text><Text style={[val, { color: colors.green }]}>{usd(st.best)}</Text></Row>
-                <Row style={{ justifyContent: "space-between" }}><Text style={lbl}>Worst trade</Text><Text style={[val, { color: colors.red }]}>{usd(st.worst)}</Text></Row>
-                <Row style={{ justifyContent: "space-between" }}><Text style={lbl}>Longest win run</Text><Text style={val}>{run.bestWin}</Text></Row>
+                <Row style={{ justifyContent: "space-between" }}><Row><Dot c={colors.green} /><Text style={{ ...lbl }}>Wins</Text></Row><Text style={[{ ...val }, { color: colors.green }]}>{st.wins}</Text></Row>
+                <Row style={{ justifyContent: "space-between" }}><Row><Dot c={colors.red} /><Text style={{ ...lbl }}>Losses</Text></Row><Text style={[{ ...val }, { color: colors.red }]}>{st.losses}</Text></Row>
+                <Row style={{ justifyContent: "space-between" }}><Text style={{ ...lbl }}>Best trade</Text><Text style={[{ ...val }, { color: colors.green }]}>{usd(st.best)}</Text></Row>
+                <Row style={{ justifyContent: "space-between" }}><Text style={{ ...lbl }}>Worst trade</Text><Text style={[{ ...val }, { color: colors.red }]}>{usd(st.worst)}</Text></Row>
+                <Row style={{ justifyContent: "space-between" }}><Text style={{ ...lbl }}>Longest win run</Text><Text style={{ ...val }}>{run.bestWin}</Text></Row>
               </View>
             </Row>
           </Card>
@@ -235,8 +235,8 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
   )
 }
 
-const lbl = { color: colors.muted, fontSize: 12.5, fontWeight: "600" } as const
-const val = { color: colors.text, fontSize: 13.5, fontWeight: "800" } as const
+const lbl = themed(() => ({ color: colors.muted, fontSize: 12.5, fontWeight: "600" } as const))
+const val = themed(() => ({ color: colors.text, fontSize: 13.5, fontWeight: "800" } as const))
 const Dot = ({ c }: { c: string }) => <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c, marginRight: 8 }} />
 
 function TradeList({ trades, counts, filter, setFilter, onOpen, onStar, onDelete }: { trades: JournalTrade[]; counts: Record<string, number>; filter: Filter; setFilter: (f: Filter) => void; onOpen: (id: number) => void; onStar: (t: JournalTrade) => void; onDelete: (t: JournalTrade) => void }) {

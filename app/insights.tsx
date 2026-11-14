@@ -7,11 +7,11 @@ import { Pop } from "../src/delight"
 import { Rise } from "../src/fx"
 import { useLoad } from "../src/hooks"
 import { inScope, ScopeBar, useScope } from "../src/scope"
-import { colors } from "../src/theme"
+import { colors, themed } from "../src/theme"
 import { Card, Empty, ErrorNote, Label, Loading, Muted, Row, Screen } from "../src/ui"
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"]
-const TONE = { good: colors.green, bad: colors.red, info: colors.amber } as const
+const TONE = themed(() => ({ good: colors.green, bad: colors.red, info: colors.amber }))
 
 /** Findings from the journal in plain words, each with the money it is worth. Follows the account chosen at the top. */
 export default function Insights() {
