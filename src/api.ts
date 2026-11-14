@@ -241,6 +241,8 @@ export const api = {
   addTradeShot: (id: number, b: { image: string; thumb: string; caption: string }) => request<ManualShot>(`/journal/trades/${id}/shots`, { method: "POST", body: JSON.stringify(b) }),
   deleteJournalTrade: (id: number) => request<void>(`/journal/trades/${id}`, { method: "DELETE" }),
   screen: (market: Market, spec: ScreenSpec, offset = 0, page = 50) => request<ScreenResult>("/screener/query", { method: "POST", body: JSON.stringify({ market, spec, offset, page }) }),
+  screenChat: (market: Market, message: string, history: { role: "user" | "assistant"; text: string }[]) =>
+    request<{ reply: string; result: ScreenResult }>("/screener/chat", { method: "POST", body: JSON.stringify({ market, message, spec: {}, history }) }),
   asset: (market: string, symbol: string) => request<AssetDetail>(`/screener/${market}/${encodeURIComponent(symbol)}`),
   strategies: (limit = 30) => request<StrategyRow[]>(`/strategies/overview?limit=${limit}&skip_forward=true`),
   backtestTrades: (id: number) => request<BacktestTrade[]>(`/backtests/${id}/trades`),

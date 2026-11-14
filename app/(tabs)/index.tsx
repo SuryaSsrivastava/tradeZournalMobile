@@ -20,6 +20,7 @@ import { PropCard } from "../../src/propcard"
 import { showToast } from "../../src/toast"
 import { StreakCard, WeekCard } from "../../src/progress"
 import { colors, impactColor, radius, themed } from "../../src/theme"
+import { useTheme } from "../../src/themeprovider"
 import { Brand, Card, Label, Loading, Muted, Row, Screen, tone } from "../../src/ui"
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"]
@@ -28,6 +29,7 @@ const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
 export default function Home() {
   const { user } = useAuth()
   const router = useRouter()
+  const theme = useTheme()
   const accounts = useLoad(() => api.accounts(), { every: 60_000, cache: "accounts" })
   const trades = useLoad(() => api.journalTrades(500), { every: 120_000, cache: "trades500" })
   const rules = useLoad(() => api.discipline(), { every: 120_000, cache: "discipline" })
@@ -96,12 +98,19 @@ export default function Home() {
     <Screen refreshing={accounts.refreshing || trades.refreshing} onRefresh={refresh}>
       <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
         <Brand size={38} />
+        <Row style={{ gap: 10 }}>
+        <Press onPress={() => theme.setMode(theme.scheme === "dark" ? "light" : "dark")}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name={theme.scheme === "dark" ? "sunny-outline" : "moon-outline"} size={21} color={colors.text} />
+          </View>
+        </Press>
         <Press onPress={() => router.push("/alerts")}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name="notifications-outline" size={21} color={colors.text} />
             {unread > 0 ? <View style={{ position: "absolute", top: 7, right: 7, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: colors.red, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 }}><Text style={{ color: "#fff", fontSize: 9.5, fontWeight: "800" }}>{unread > 9 ? "9+" : unread}</Text></View> : null}
           </View>
         </Press>
+        </Row>
       </Row>
 
       <View style={{ marginBottom: 14 }}>
@@ -132,7 +141,7 @@ export default function Home() {
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
           <Quick icon="add-circle-outline" label="Log trade" onPress={() => router.push("/trade/new")} />
           <Quick icon="pulse-outline" label="Live trades" onPress={() => router.push("/positions")} />
-          <Quick icon="search-outline" label="Markets" onPress={() => router.push("/markets")} />
+          <Quick icon="funnel-outline" label="Screener" onPress={() => router.push("/markets")} />
           <Quick icon="calendar-outline" label="Calendar" onPress={() => router.push("/calendar")} />
         </View>
       </Rise>

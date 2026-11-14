@@ -2,7 +2,7 @@ import { ActivityIndicator, Animated, Image, Pressable, RefreshControl, StyleShe
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRef, type ReactNode } from "react"
 import { Ambient, Glass, Rise, Skeleton } from "./fx"
-import { colors, radius, themed } from "./theme"
+import { colors, currentScheme, radius, themed } from "./theme"
 
 export function Screen({ children, refreshing, onRefresh, scroll = true, padTop = true }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; padTop?: boolean }) {
   const insets = useSafeAreaInsets()
@@ -27,7 +27,7 @@ export function Brand({ size = 34, mark = false }: { size?: number; mark?: boole
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <Image source={require("../assets/logo-mark.png")} style={{ width: size, height: size, borderRadius: size * 0.24 }} />
-      {mark ? null : <Image source={require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 8.56, height: h, marginLeft: size * 0.3 }} />}
+      {mark ? null : <Image source={currentScheme() === "light" ? require("../assets/logo-wordmark-light.png") : require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 8.56, height: h, marginLeft: size * 0.3 }} />}
     </View>
   )
 }

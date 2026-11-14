@@ -37,7 +37,7 @@ export default function TabsLayout() {
     }}>
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: icon("home-outline", "home") }} />
       <Tabs.Screen name="journal" options={{ title: "Journal", tabBarIcon: icon("book-outline", "book") }} />
-      <Tabs.Screen name="markets" options={{ title: "Markets", tabBarIcon: icon("search-outline", "search") }} />
+      <Tabs.Screen name="markets" options={{ title: "Screener", tabBarIcon: icon("funnel-outline", "funnel") }} />
       <Tabs.Screen name="invest" options={{ title: "Portfolio", tabBarIcon: icon("pie-chart-outline", "pie-chart") }} />
       <Tabs.Screen name="more" options={{ title: "More", tabBarIcon: icon("grid-outline", "grid"), tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined }} />
     </Tabs>
