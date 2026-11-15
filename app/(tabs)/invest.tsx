@@ -1,16 +1,19 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
-import { Text, View } from "react-native"
+import { Alert, Text, View } from "react-native"
 import { api, type BrokerInfo, type Holding, type Portfolio } from "../../src/api"
 import { BrokerLogin, ConnectBroker, loginUrl } from "../../src/broker"
 import { Bar, CountUp, Hero, Press, Rise, Ring, Sparkline, Stat } from "../../src/fx"
-import { ago, money } from "../../src/format"
+import { ago, money, quote } from "../../src/format"
 import { useLoad } from "../../src/hooks"
+import { SwipeRow } from "../../src/swipe"
+import { showToast } from "../../src/toast"
 import { colors, themed } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 
 type Tab = "holdings" | "watchlist" | "orders"
 const inr = (n: number | null | undefined, sign = false) => money(n, "INR", sign)
+const px = (n: number | null | undefined) => quote(n, "INR")  // a price on the market: never hidden
 const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`)
 const big = { fontSize: 19, fontWeight: "800" } as const
 
@@ -202,9 +205,9 @@ function Detail({ h }: { h: Holding }) {
         {yearChange != null ? <Text style={{ color: tone(yearChange), fontSize: 12, fontWeight: "700" }}>{pct(yearChange)}</Text> : null}
       </Row>
       {failed ? <Muted>No chart for this one.</Muted> : pts && pts.length > 1 ? <Sparkline points={pts} width={290} height={70} color={yearChange != null && yearChange < 0 ? colors.red : colors.green} /> : history ? <Muted>No price history.</Muted> : <Loading />}
-      {history && history.length > 1 ? <Row style={{ justifyContent: "space-between", marginTop: 4 }}><Muted>Low {inr(Math.min(...history))}</Muted><Muted>High {inr(Math.max(...history))}</Muted></Row> : null}
+      {history && history.length > 1 ? <Row style={{ justifyContent: "space-between", marginTop: 4 }}><Muted>Low {px(Math.min(...history))}</Muted><Muted>High {px(Math.max(...history))}</Muted></Row> : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-        <Stat label="Last price">{inr(h.ltp)}</Stat>
+        <Stat label="Last price">{px(h.ltp)}</Stat>
         <Stat label="Invested">{inr(h.invested)}</Stat>
         <Stat label="Today" tint={tone(h.day_pnl)}>{inr(h.day_pnl, true)}</Stat>
         <Stat label="Account">{h.account || h.broker_label}</Stat>
@@ -217,18 +220,23 @@ function Watchlist() {
   const w = useLoad(() => api.investWatchlist(), { every: 120_000 })
   if (!w.loaded) return <Loading />
   const list = w.data?.stocks ?? []
+  const remove = (s: { id: number; symbol: string }) => Alert.alert(`Remove ${s.symbol} from your watchlist?`, undefined, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Remove", style: "destructive", onPress: async () => { try { await api.removeFromWatchlist(s.id); showToast("Removed from watchlist"); await w.refresh() } catch (e) { showToast(e instanceof Error ? e.message : "Could not remove it.", false) } } },
+  ])
   if (list.length === 0) return <Empty title="Watchlist is empty" text="Add stocks from the Screener on the website and they appear here with live prices." />
   return <>{list.map((s, i) => {
     const since = s.price != null && s.added_price ? ((s.price - s.added_price) / s.added_price) * 100 : null
     return (
-      <Card key={s.id} delay={Math.min(i, 8) * 50}>
+      <SwipeRow key={s.id} left={{ label: "Remove", icon: "trash-outline", color: colors.red, run: () => remove(s) }}>
+      <Card delay={Math.min(i, 8) * 50}>
         <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
           <View style={{ flex: 1, paddingRight: 10 }}>
             <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>{s.symbol}</Text>
             <Muted numberOfLines={1}>{s.name}{s.sector ? ` · ${s.sector}` : ""}</Muted>
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>{s.price != null ? inr(s.price) : "-"}</Text>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>{s.price != null ? px(s.price) : "-"}</Text>
             <Text style={{ color: tone(s.chg_1d), fontSize: 12, fontWeight: "700" }}>{pct(s.chg_1d)} today</Text>
           </View>
         </Row>
@@ -238,6 +246,7 @@ function Watchlist() {
           <Muted>added {ago(s.added_at)}</Muted>
         </Row>
       </Card>
+      </SwipeRow>
     )
   })}</>
 }

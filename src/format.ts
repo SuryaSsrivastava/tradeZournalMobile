@@ -1,4 +1,13 @@
-export const money = (n: number | null | undefined, currency = "USD", sign = false) => {
+let hide = false
+/** Whether the member asked to hide the amounts of their own money (balances, profit and loss); a price on the market is never hidden. */
+export const setHideAmounts = (v: boolean) => { hide = v }
+export const amountsHidden = () => hide
+
+/** An amount of the member's own money: masked when they chose to hide amounts. */
+export const money = (n: number | null | undefined, currency = "USD", sign = false) => (hide && n != null && !Number.isNaN(n) ? "••••" : quote(n, currency, sign))
+
+/** A price or figure of the market (a stock's price, a day's high): shown whatever the privacy choice. */
+export const quote = (n: number | null | undefined, currency = "USD", sign = false) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "-"
   const s = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const sym = currency === "USD" ? "$" : currency === "INR" ? "₹" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : ""

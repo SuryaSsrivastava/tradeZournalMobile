@@ -77,14 +77,20 @@ export function weekdays(trades: JournalTrade[]): { label: string; pnl: number; 
   return out
 }
 
-/** Trades grouped by a label (setup, emotion, tag): count, net result and win rate of each, best first. */
-export function breakdown(trades: JournalTrade[], labels: (t: JournalTrade) => string[]): { key: string; n: number; net: number; winRate: number }[] {
-  const m = new Map<string, { n: number; net: number; wins: number }>()
-  for (const t of trades) for (const k of labels(t)) {
-    const g = m.get(k) ?? { n: 0, net: 0, wins: 0 }
-    const p = pnlOf(t); g.n++; g.net += p; if (p > 0) g.wins++; m.set(k, g)
+/**
+ * Trades grouped by a label (setup, emotion, tag): count, net result and win rate of each, best first. Labels are typed by hand, so "FOMO", "fomo" and " Fomo " are one group; `upper` shows
+ * the group in capitals (what the charts for emotions and setups use), otherwise it keeps the way it was first written.
+ */
+export function breakdown(trades: JournalTrade[], labels: (t: JournalTrade) => string[], upper = false): { key: string; n: number; net: number; winRate: number }[] {
+  const m = new Map<string, { shown: string; n: number; net: number; wins: number }>()
+  for (const t of trades) for (const raw of labels(t)) {
+    const label = raw.trim()
+    if (!label) continue
+    const id = label.toLowerCase()
+    const g = m.get(id) ?? { shown: upper ? label.toUpperCase() : label, n: 0, net: 0, wins: 0 }
+    const p = pnlOf(t); g.n++; g.net += p; if (p > 0) g.wins++; m.set(id, g)
   }
-  return [...m.entries()].map(([key, g]) => ({ key, n: g.n, net: g.net, winRate: (g.wins / g.n) * 100 })).sort((a, b) => b.net - a.net)
+  return [...m.values()].map((g) => ({ key: g.shown, n: g.n, net: g.net, winRate: (g.wins / g.n) * 100 })).sort((a, b) => b.net - a.net)
 }
 
 /** The biggest fall from a peak of the equity curve, as a positive amount. */

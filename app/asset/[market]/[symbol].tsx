@@ -4,7 +4,7 @@ import { Text, View } from "react-native"
 import { api } from "../../../src/api"
 import { Curve } from "../../../src/charts"
 import { Rise, Stat } from "../../../src/fx"
-import { money } from "../../../src/format"
+import { quote } from "../../../src/format"
 import { useLoad } from "../../../src/hooks"
 import { colors } from "../../../src/theme"
 import { Card, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../../src/ui"
@@ -28,7 +28,7 @@ export default function Asset() {
   const change = pts.length > 1 ? ((pts[pts.length - 1] - pts[0]) / pts[0]) * 100 : null
   const m = d?.metrics ?? {}
   const price = m.price ?? (all.length ? all[all.length - 1] : null)
-  const show = (v: number | null | undefined) => (v == null ? "-" : cur ? money(v, cur) : v.toFixed(4))
+  const show = (v: number | null | undefined) => (v == null ? "-" : cur ? quote(v, cur) : v.toFixed(4))
 
   return (
     <Screen refreshing={a.refreshing} onRefresh={a.refresh} padTop={false}>

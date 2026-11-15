@@ -2,6 +2,7 @@ import Constants, { ExecutionEnvironment } from "expo-constants"
 import * as SecureStore from "expo-secure-store"
 import { Platform } from "react-native"
 import { api, ApiError, restoreSession, type LivePosition } from "./api"
+import { amountsHidden } from "./format"
 
 /**
  * "Live trades" in the notification bar (Android): while a trade is open, one notification stays in the bar with its running profit and a timer since it opened, like a delivery or a
@@ -91,7 +92,7 @@ async function show(since: number | null, open: LivePosition[], currency: string
   const total = open.reduce((sum, p) => sum + p.profit, 0)
   const one = open.length === 1 ? open[0] : null
   const sym = currency && currency !== "USD" ? `${currency} ` : "$"
-  const money = (n: number) => `${n >= 0 ? "+" : "-"}${sym}${Math.abs(n).toFixed(2)}`
+  const money = (n: number) => (amountsHidden() ? "••••" : `${n >= 0 ? "+" : "-"}${sym}${Math.abs(n).toFixed(2)}`)
   const canClose = (await SecureStore.getItemAsync(CAN_CLOSE).catch(() => "0")) === "1"
   await notifee.displayNotification({
     id: CHANNEL,

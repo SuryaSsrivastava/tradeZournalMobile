@@ -187,12 +187,12 @@ export default function Plans() {
                   <Muted style={{ marginTop: 6 }}>{yearly ? `Billed ${money(billedYearly)} yearly${usual ? `, instead of ${money(usual * 12)}` : ""}${gst}` : `Billed monthly${gst}`}</Muted>
                   <View style={{ marginTop: 12, gap: 7 }}>
                     <Feature on text={n(p.connected_accounts, "connected account", "connected accounts")} />
-                    <Feature on={p.replay_screenshots} text="Trade screenshots, with zoom" />
-                    <Feature on={p.live_positions} text="Live trades, with close" />
+                    <Feature on={p.replay_screenshots} text="Trade screenshots" />
+                    <Feature on={p.live_positions} text="Live trades tracking" />
                     <Feature on text={n(p.forward_tests, "forward test", "forward tests")} />
                     <Feature on text={n(p.strategies, "saved strategy", "saved strategies")} />
                     <Feature on text={`${n(p.ai_requests, "AI request", "AI requests")} a month`} />
-                    <Feature on={(p.coach_reviews ?? 0) > 0} text={`${n(p.coach_reviews, "AI coach review", "AI coach reviews")} a month`} />
+                    <Feature on={p.coach_reviews === null || (p.coach_reviews ?? 0) > 0} text={`${n(p.coach_reviews, "AI coach review", "AI coach reviews")} a month`} />
                     <Feature on={p.premium_models} text="The best AI models" />
                     <Feature on text={`${p.support} support`} />
                   </View>

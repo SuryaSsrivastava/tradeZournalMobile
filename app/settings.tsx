@@ -9,6 +9,7 @@ import { useLock } from "../src/lock"
 import { registerForPush, unregisterPush } from "../src/push"
 import { colors } from "../src/theme"
 import { markReopenSettings } from "../src/themeflag"
+import { usePrivacy } from "../src/privacy"
 import { useTheme } from "../src/themeprovider"
 import { Button, Card, ErrorNote, Label, Muted, Pill, Row, Screen } from "../src/ui"
 
@@ -23,6 +24,7 @@ export default function Settings() {
   const [busy, setBusy] = useState<"push" | "test" | null>(null)
   const lock = useLock()
   const theme = useTheme()
+  const privacy = usePrivacy()
   const [lockNote, setLockNote] = useState<{ ok: boolean; text: string } | null>(null)
   const toggleLock = async (on: boolean) => { const r = await lock.setEnabled(on); setLockNote({ ok: r.ok, text: r.message }) }
 
@@ -103,6 +105,16 @@ export default function Settings() {
           {(["system", "dark", "light"] as const).map((m) => (
             <Pill key={m} active={theme.mode === m} onPress={() => { if (theme.mode !== m) { markReopenSettings(); theme.setMode(m) } }}>{m === "system" ? "Match phone" : m === "dark" ? "Dark" : "Light"}</Pill>
           ))}
+        </Row>
+      </Card>
+
+      <Card>
+        <Row style={{ justifyContent: "space-between" }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>Hide amounts</Text>
+            <Muted style={{ marginTop: 3 }}>Balances, profit and loss show as •••• on every screen. Prices of stocks and markets stay visible.</Muted>
+          </View>
+          <Switch value={privacy.hidden} onValueChange={(v) => { markReopenSettings(); privacy.setHidden(v) }} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
         </Row>
       </Card>
 

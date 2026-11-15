@@ -11,6 +11,7 @@ import { useLoad } from "../../src/hooks"
 import { breakdown, byHour, byMonth, dailySeries, drawdownSeries, equityPoints, equityPointsR, groupByDay, holdMinutes, inRange, journalStats, maxDrawdown, minutesText, pnlByDay, pnlOf, rBuckets, rOf, rollingWinRate, sessionOf, streaks, weekdays } from "../../src/journal"
 import { ShotBadge } from "../../src/shots"
 import { SwipeRow } from "../../src/swipe"
+import { useHint } from "../../src/swipehint"
 import { showToast } from "../../src/toast"
 import { success } from "../../src/delight"
 import { inMode, inScope, ScopeBar, useScope } from "../../src/scope"
@@ -120,8 +121,8 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
   const months = byMonth(t)
   const hold = holdMinutes(t)
   const ratings = breakdown(t, (x) => [`${x.rating}★`]).sort((a, b) => b.key.localeCompare(a.key))
-  const setups = breakdown(t, (x) => (x.setup ? [x.setup] : [])).slice(0, 6)
-  const feelings = breakdown(t, (x) => x.emotions).slice(0, 6)
+  const setups = breakdown(t, (x) => (x.setup ? [x.setup] : []), true).slice(0, 6)
+  const feelings = breakdown(t, (x) => x.emotions, true).slice(0, 6)
   const discipline = breakdown(t, (x) => (x.followed_plan === true ? ["Followed the plan"] : x.followed_plan === false ? ["Broke the plan"] : []))
   const rows = (xs: { key: string; n: number; net: number; winRate: number }[]) => xs.map((x) => ({ key: x.key, value: x.net, sub: `${x.n} trade${x.n === 1 ? "" : "s"} · ${x.winRate.toFixed(0)}% wins` }))
   const holdNote = hold.win != null && hold.loss != null
@@ -242,19 +243,20 @@ const Dot = ({ c }: { c: string }) => <View style={{ width: 8, height: 8, border
 function TradeList({ trades, counts, filter, setFilter, onOpen, onStar, onDelete }: { trades: JournalTrade[]; counts: Record<string, number>; filter: Filter; setFilter: (f: Filter) => void; onOpen: (id: number) => void; onStar: (t: JournalTrade) => void; onDelete: (t: JournalTrade) => void }) {
   const groups = groupByDay(trades.filter((t) => keep(filter, t)))
   let i = 0
+  const hint = useHint("swipe.trade")  // shown to a new member until they have swiped, or dismissed it
   return (
     <>
       <Row style={{ flexWrap: "wrap", marginBottom: 6 }}>{FILTERS.map(([k, l]) => <Pill key={k} active={filter === k} onPress={() => setFilter(k)}>{l}</Pill>)}</Row>
-      {groups.length === 0 ? <Empty title="Nothing matches" text="Try another filter." /> : groups.map((g) => (
+      {groups.length === 0 ? <Empty title="Nothing matches" text="Try another filter." /> : groups.map((g, gi) => (
         <View key={g.iso} style={{ marginTop: 8 }}>
           <Row style={{ justifyContent: "space-between", marginBottom: 6, paddingHorizontal: 2 }}>
             <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.6 }}>{dayLabel(g.iso).toUpperCase()}</Text>
             <Text style={{ color: tone(g.total), fontSize: 12, fontWeight: "800" }}>{money(g.total, "USD", true)}</Text>
           </Row>
-          {g.trades.map((t) => (
-            <SwipeRow key={t.id}
-              right={{ label: t.tags.includes("starred") ? "Unstar" : "Star", icon: t.tags.includes("starred") ? "star" : "star-outline", color: colors.amber, run: () => onStar(t) }}
-              left={{ label: "Delete", icon: "trash-outline", color: colors.red, run: () => onDelete(t) }}>
+          {g.trades.map((t, ti) => (
+            <SwipeRow key={t.id} peek={hint.show && gi === 0 && ti === 0} onPeeked={hint.done}
+              right={{ label: t.tags.includes("starred") ? "Unstar" : "Star", icon: t.tags.includes("starred") ? "star" : "star-outline", color: colors.amber, run: () => { hint.done(); onStar(t) } }}
+              left={{ label: "Delete", icon: "trash-outline", color: colors.red, run: () => { hint.done(); onDelete(t) } }}>
               <TradeRow t={t} shots={counts[t.id]} delay={Math.min(i++, 10) * 45} starred={t.tags.includes("starred")} onPress={() => onOpen(t.id)} />
             </SwipeRow>
           ))}
@@ -274,7 +276,7 @@ function TradeRow({ t, shots, delay, starred, onPress }: { t: JournalTrade; shot
             <View style={{ width: 4, alignSelf: "stretch", borderRadius: 2, backgroundColor: tone(p), marginRight: 12, opacity: 0.9 }} />
             <View style={{ flex: 1 }}>
               <Row><Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>{t.symbol} <Text style={{ color: t.side === "Short" ? colors.red : colors.green, fontSize: 11, fontWeight: "700" }}>{t.side.toUpperCase()}</Text></Text><ShotBadge n={shots} />{starred ? <Ionicons name="star" size={12} color={colors.amber} style={{ marginLeft: 6 }} /> : null}</Row>
-              <Muted numberOfLines={1}>{[t.setup, t.emotions[0], t.note].filter(Boolean).join(" · ") || `${t.qty} @ ${t.entry}`}</Muted>
+              <Muted numberOfLines={1}>{[t.setup, t.emotions[0]?.toUpperCase(), t.note].filter(Boolean).join(" · ") || `${t.qty} @ ${t.entry}`}</Muted>
             </View>
           </Row>
           <View style={{ alignItems: "flex-end" }}>

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useRef, type ComponentProps, type ReactNode } from "react"
-import { Animated, PanResponder, Text, View } from "react-native"
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
+import { Animated, Easing, PanResponder, Text, View } from "react-native"
 import { tick } from "./fx"
 import { colors, radius } from "./theme"
 
@@ -11,15 +11,33 @@ const REACH = 84  // how far a swipe has to go to count
 
 /**
  * A row that slides sideways to show an action behind it: right reveals `right`, left reveals `left`. Past REACH the phone ticks, and letting go runs the action; the row then springs back
- * (an action that removes the row does that on its own when the list refreshes). Vertical drags are left to the list, so scrolling still works.
+ * (an action that removes the row does that on its own when the list refreshes). Vertical drags are left to the list, so scrolling still works. With `peek` the row shows by itself what it can
+ * do, once: it slides to uncover each action in turn and comes back, so a new member sees that swiping is possible. Touching the row stops it.
  */
-export function SwipeRow({ children, left, right }: { children: ReactNode; left?: SwipeAction; right?: SwipeAction }) {
+export function SwipeRow({ children, left, right, peek, onPeeked }: { children: ReactNode; left?: SwipeAction; right?: SwipeAction; peek?: boolean; onPeeked?: () => void }) {
   const x = useRef(new Animated.Value(0)).current
   const armed = useRef(false)
   const props = useRef({ left, right })
   props.current = { left, right }
 
+  useEffect(() => {
+    if (!peek) return
+    const to = [right ? REACH * 0.55 : null, left ? -REACH * 0.55 : null].filter((v): v is number => v !== null)
+    const run = Animated.sequence([
+      Animated.delay(900),
+      ...to.flatMap((d) => [
+        Animated.timing(x, { toValue: d, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.delay(700),
+        Animated.spring(x, { toValue: 0, useNativeDriver: true, speed: 14, bounciness: 4 }),
+        Animated.delay(350),
+      ]),
+    ])
+    run.start(({ finished }) => { if (finished) onPeeked?.() })
+    return () => { run.stop(); Animated.spring(x, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 4 }).start() }  // dismissed in the middle of it: the row goes home
+  }, [peek])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const pan = useRef(PanResponder.create({
+    onPanResponderGrant: () => x.stopAnimation(),
     onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
     onPanResponderTerminationRequest: () => false,
     onPanResponderMove: (_, g) => {

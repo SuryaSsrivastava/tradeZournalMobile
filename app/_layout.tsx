@@ -19,6 +19,7 @@ import { ScopeProvider } from "../src/scope"
 import { Toaster } from "../src/toast"
 import { colors } from "../src/theme"
 import { LanguageProvider } from "../src/i18n"
+import { PrivacyProvider, usePrivacy } from "../src/privacy"
 import { ThemeProvider, useTheme } from "../src/themeprovider"
 import { takeReopenSettings } from "../src/themeflag"
 
@@ -131,10 +132,11 @@ function Gate() {
 
 function Themed() {
   const { scheme } = useTheme()
+  const { hidden, loaded } = usePrivacy()
   return (
     <>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
-      <ScopeProvider><LockProvider><Fragment key={scheme}><Gate /><OfflineBanner /><Toaster /></Fragment></LockProvider></ScopeProvider>
+      {loaded ? <ScopeProvider><LockProvider><Fragment key={`${scheme}-${hidden}`}><Gate /><OfflineBanner /><Toaster /></Fragment></LockProvider></ScopeProvider> : null}
       <AnimatedSplash />
     </>
   )
@@ -144,7 +146,7 @@ export default function Root() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <LanguageProvider><ThemeProvider>{() => <Themed />}</ThemeProvider></LanguageProvider>
+        <LanguageProvider><PrivacyProvider><ThemeProvider>{() => <Themed />}</ThemeProvider></PrivacyProvider></LanguageProvider>
       </AuthProvider>
     </SafeAreaProvider>
   )

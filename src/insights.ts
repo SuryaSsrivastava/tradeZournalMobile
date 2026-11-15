@@ -36,7 +36,7 @@ export function insights(trades: JournalTrade[]): Insight[] {
   }
 
   // 2. feelings
-  const feel = breakdown(trades, (t) => t.emotions.map((e) => e.toLowerCase())).filter((e) => e.n >= MIN)
+  const feel = breakdown(trades, (t) => t.emotions, true).filter((e) => e.n >= MIN)
   const worstFeel = [...feel].sort((a, b) => a.net - b.net)[0]
   const bestFeel = feel[0]
   if (worstFeel && worstFeel.net < 0) out.push({ id: "feel-bad", tone: "bad", icon: "sad", title: `Trades tagged "${worstFeel.key}" cost you ${usd(Math.abs(worstFeel.net))}`, text: `${worstFeel.n} trades, ${pct(worstFeel.winRate)} winners. When you feel this way, it may be better to sit out.`, weight: Math.abs(worstFeel.net) })
@@ -81,7 +81,7 @@ export function insights(trades: JournalTrade[]): Insight[] {
   }
 
   // 6. setups
-  const setups = breakdown(trades, (t) => (t.setup.trim() ? [t.setup.trim()] : [])).filter((s) => s.n >= MIN)
+  const setups = breakdown(trades, (t) => (t.setup.trim() ? [t.setup.trim()] : []), true).filter((s) => s.n >= MIN)
   if (setups.length >= 2) {
     const best = setups[0], worst = setups[setups.length - 1]
     if (best.net > 0) out.push({ id: "setup-best", tone: "good", icon: "trophy", title: `"${best.key}" is your best setup`, text: `${best.n} trades, ${usd(best.net)}, ${pct(best.winRate)} winners.`, weight: best.net })

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { Ionicons } from "@expo/vector-icons"
 import { Animated, Easing, Pressable, Text, View } from "react-native"
 import Svg, { Defs, Line, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg"
 import { Sparkline, tick, useReducedMotion } from "./fx"
@@ -19,53 +20,189 @@ export function Curve({ points, height = 90, color }: { points: number[]; height
 const DAY = ["M", "T", "W", "T", "F", "S", "S"]
 const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
 
-/** A month of trading days: each square is a day, green for a profit and red for a loss, deeper the bigger it is. Tap a day for its total. */
+type CalView = "week" | "month" | "year"
+const startOfWeek = (d: Date) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }  // Monday
+const tint = (c: string, a: number) => `${c}${Math.round(a * 255).toString(16).padStart(2, "0")}`
+const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+/**
+ * The trading calendar in three views: a week (one row a day, with a bar for its size), a month (each square is a day, green for a profit and red for a loss, deeper the bigger it is) and a year
+ * (a tile for each month, tap one to open it). The week view can also be shown as blocks: a tile for each week of the month with its total, tap one to open that week. The arrows move by one
+ * week, month or year (a month in blocks). Tap a day for its trades.
+ */
 export function PnlCalendar({ byDay, onPick }: { byDay: Map<string, number>; onPick?: (day: Date, pnl: number | null) => void }) {
-  const [month, setMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1) })
+  const [view, setView] = useState<CalView>("month")
+  const [anchor, setAnchor] = useState(() => new Date())  // any day inside the week, month or year on show
   const [picked, setPicked] = useState<string | null>(null)
+  const [weekLayout, setWeekLayout] = useState<"days" | "blocks">("days")
+  const blocks = view === "week" && weekLayout === "blocks"
+  const unit: CalView = blocks ? "month" : view  // what the arrows and the title go by
+  const today = new Date()
+  const month = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+  const monday = startOfWeek(anchor)
+  const year = anchor.getFullYear()
+
+  const move = (n: number) => {
+    setPicked(null)
+    setAnchor((a) => unit === "week" ? new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n) : unit === "month" ? new Date(a.getFullYear(), a.getMonth() + n, 1) : new Date(a.getFullYear() + n, 0, 1))
+  }
+  const canNext = unit === "week" ? new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7) <= today : unit === "month" ? new Date(month.getFullYear(), month.getMonth() + 1, 1) <= today : year < today.getFullYear()
+  const swap = (v: CalView) => { setPicked(null); setView(v) }
+
+  // the days of the period on show, and what they add up to
   const cells = useMemo(() => {
+    if (view === "week" && !blocks) return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i))
+    if (view === "year" || blocks) return []
     const first = (month.getDay() + 6) % 7  // Monday first
     const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
     const out: (Date | null)[] = Array(first).fill(null)
     for (let d = 1; d <= days; d++) out.push(new Date(month.getFullYear(), month.getMonth(), d))
     while (out.length % 7) out.push(null)
     return out
-  }, [month])
-  const vals = cells.flatMap((d) => (d && byDay.has(key(d)) ? [Math.abs(byDay.get(key(d))!)] : []))
-  const max = Math.max(1, ...vals)
-  const total = cells.reduce((a, d) => a + (d ? byDay.get(key(d)) ?? 0 : 0), 0)
-  const shift = (n: number) => { setPicked(null); setMonth((m) => new Date(m.getFullYear(), m.getMonth() + n, 1)) }
-  const next = new Date(month.getFullYear(), month.getMonth() + 1, 1) <= new Date()
+  }, [view, blocks, month, monday])
+  const months = useMemo(() => {
+    const m = Array.from({ length: 12 }, () => ({ pnl: 0, days: 0, wins: 0 }))
+    for (const [k, v] of byDay) { const [y, mo] = k.split("-").map(Number); if (y === year) { m[mo].pnl += v; m[mo].days++; if (v > 0) m[mo].wins++ } }
+    return m
+  }, [byDay, year])
+  // the weeks of the month on show (only the days that fall in the month count, so the blocks add up to the month)
+  const weekBlocks = useMemo(() => {
+    if (!blocks) return []
+    const first = new Date(month.getFullYear(), month.getMonth(), 1), last = new Date(month.getFullYear(), month.getMonth() + 1, 0)
+    const out: { from: Date; to: Date; pnl: number; days: number; wins: number }[] = []
+    for (let st = startOfWeek(first); st <= last; st = new Date(st.getFullYear(), st.getMonth(), st.getDate() + 7)) {
+      const from = st < first ? first : st
+      const sun = new Date(st.getFullYear(), st.getMonth(), st.getDate() + 6)
+      const to = sun > last ? last : sun
+      let pnl = 0, days = 0, wins = 0
+      for (let d = new Date(from); d <= to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) { const v = byDay.get(key(d)); if (v != null) { pnl += v; days++; if (v > 0) wins++ } }
+      out.push({ from, to, pnl, days, wins })
+    }
+    return out
+  }, [blocks, month, byDay])
+  const maxWeek = Math.max(1, ...weekBlocks.map((w) => Math.abs(w.pnl)))
+  const dayVals = cells.flatMap((d) => (d && byDay.has(key(d)) ? [Math.abs(byDay.get(key(d))!)] : []))
+  const max = Math.max(1, ...dayVals)
+  const maxMonth = Math.max(1, ...months.map((m) => Math.abs(m.pnl)))
+  const total = view === "year" ? months.reduce((a, m) => a + m.pnl, 0) : blocks ? weekBlocks.reduce((a, w) => a + w.pnl, 0) : cells.reduce((a, d) => a + (d ? byDay.get(key(d)) ?? 0 : 0), 0)
+  const title = unit === "year" ? String(year)
+    : unit === "month" ? month.toLocaleDateString([], { month: "long", year: "numeric" })
+    : `${monday.toLocaleDateString([], { day: "numeric", month: "short" })} – ${new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })}`
+  const pick = (d: Date, v: number | undefined) => { setPicked(key(d)); onPick?.(d, v ?? null) }
 
   return (
     <View>
+      <View style={{ flexDirection: "row", alignSelf: "center", backgroundColor: `${colors.border}66`, borderRadius: radius.pill, padding: 3, marginBottom: 12 }}>
+        {(["week", "month", "year"] as const).map((v) => (
+          <Pressable key={v} onPress={() => { tick(); swap(v) }} style={{ paddingHorizontal: 18, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: view === v ? colors.card : "transparent" }}>
+            <Text style={{ color: view === v ? colors.text : colors.muted, fontSize: 12.5, fontWeight: "800", textTransform: "capitalize" }}>{v}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {view === "week" ? (
+        <View style={{ flexDirection: "row", alignSelf: "flex-end", gap: 6, marginBottom: 8 }}>
+          {(["days", "blocks"] as const).map((l) => (
+            <Pressable key={l} onPress={() => { tick(); setPicked(null); setWeekLayout(l) }} hitSlop={6} style={{ width: 34, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: weekLayout === l ? `${colors.green}22` : "transparent", borderWidth: 1, borderColor: weekLayout === l ? `${colors.green}66` : `${colors.border}99` }}>
+              <Ionicons name={l === "days" ? "list" : "grid"} size={16} color={weekLayout === l ? colors.green : colors.muted} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <Pressable onPress={() => shift(-1)} hitSlop={12}><Text style={{ color: colors.muted, fontSize: 20, paddingHorizontal: 6 }}>‹</Text></Pressable>
+        <Pressable onPress={() => move(-1)} hitSlop={12}><Text style={{ color: colors.muted, fontSize: 20, paddingHorizontal: 6 }}>‹</Text></Pressable>
         <View style={{ alignItems: "center" }}>
-          <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{month.toLocaleDateString([], { month: "long", year: "numeric" })}</Text>
+          <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{title}</Text>
           <Text style={{ color: total > 0 ? colors.green : total < 0 ? colors.red : colors.muted, fontSize: 12, fontWeight: "700" }}>{money(total, "USD", true)}</Text>
         </View>
-        <Pressable onPress={() => next && shift(1)} hitSlop={12} style={{ opacity: next ? 1 : 0.25 }}><Text style={{ color: colors.muted, fontSize: 20, paddingHorizontal: 6 }}>›</Text></Pressable>
+        <Pressable onPress={() => canNext && move(1)} hitSlop={12} style={{ opacity: canNext ? 1 : 0.25 }}><Text style={{ color: colors.muted, fontSize: 20, paddingHorizontal: 6 }}>›</Text></Pressable>
       </View>
-      <View style={{ flexDirection: "row", marginBottom: 4 }}>{DAY.map((d, i) => <Text key={i} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 10, fontWeight: "700" }}>{d}</Text>)}</View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-        {cells.map((d, i) => {
-          const v = d ? byDay.get(key(d)) : undefined
-          const a = v == null ? 0 : 0.18 + 0.62 * (Math.abs(v) / max)
-          const c = v == null ? colors.border : v >= 0 ? colors.green : colors.red
-          const sel = d && picked === key(d)
-          return (
-            <View key={i} style={{ width: `${100 / 7}%`, padding: 2 }}>
-              {d ? (
-                <Pressable onPress={() => { const k = key(d); setPicked(k); onPick?.(d, v ?? null) }}
-                  style={{ aspectRatio: 1, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: v == null ? `${colors.border}55` : `${c}${Math.round(a * 255).toString(16).padStart(2, "0")}`, borderWidth: sel ? 1.5 : 0, borderColor: colors.text }}>
-                  <Text style={{ color: v == null ? colors.muted : colors.text, fontSize: 11, fontWeight: v == null ? "500" : "800" }}>{d.getDate()}</Text>
+
+      {view === "year" ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {months.map((m, i) => {
+            const c = m.days === 0 ? colors.border : m.pnl >= 0 ? colors.green : colors.red
+            const future = new Date(year, i, 1) > today
+            return (
+              <View key={i} style={{ width: "33.333%", padding: 3 }}>
+                <Pressable onPress={() => { tick(); setPicked(null); setAnchor(new Date(year, i, 1)); setView("month") }}
+                  style={{ borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 8, minHeight: 74, justifyContent: "space-between", opacity: future ? 0.4 : 1, backgroundColor: m.days === 0 ? `${colors.border}55` : tint(c, 0.16 + 0.5 * (Math.abs(m.pnl) / maxMonth)) }}>
+                  <Text style={{ color: colors.text, fontSize: 12, fontWeight: "800" }}>{new Date(year, i, 1).toLocaleDateString([], { month: "short" })}</Text>
+                  <View>
+                    <Text style={{ color: m.days === 0 ? colors.muted : colors.text, fontSize: 12.5, fontWeight: "800" }}>{m.days === 0 ? "-" : money(m.pnl, "USD", true)}</Text>
+                    {m.days > 0 ? <Text style={{ color: colors.muted, fontSize: 10, fontWeight: "600" }}>{m.days} {m.days === 1 ? "day" : "days"} · {Math.round((m.wins / m.days) * 100)}% green</Text> : null}
+                  </View>
                 </Pressable>
-              ) : null}
-            </View>
-          )
-        })}
-      </View>
+              </View>
+            )
+          })}
+        </View>
+      ) : blocks ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {weekBlocks.map((w, i) => {
+            const c = w.days === 0 ? colors.border : w.pnl >= 0 ? colors.green : colors.red
+            const future = w.from > today
+            const range = w.from.getDate() === w.to.getDate() ? `${w.from.getDate()}` : `${w.from.getDate()}–${w.to.getDate()}`
+            return (
+              <View key={i} style={{ width: "50%", padding: 3 }}>
+                <Pressable onPress={() => { tick(); setPicked(null); setAnchor(w.from); setWeekLayout("days") }}
+                  style={{ borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 10, minHeight: 88, justifyContent: "space-between", opacity: future ? 0.4 : 1, backgroundColor: w.days === 0 ? `${colors.border}55` : tint(c, 0.16 + 0.5 * (Math.abs(w.pnl) / maxWeek)) }}>
+                  <View>
+                    <Text style={{ color: colors.text, fontSize: 12, fontWeight: "800" }}>Week {i + 1}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 10.5, fontWeight: "600" }}>{range} {month.toLocaleDateString([], { month: "short" })}</Text>
+                  </View>
+                  <View>
+                    <Text style={{ color: w.days === 0 ? colors.muted : colors.text, fontSize: 14, fontWeight: "800" }}>{w.days === 0 ? "-" : money(w.pnl, "USD", true)}</Text>
+                    {w.days > 0 ? <Text style={{ color: colors.muted, fontSize: 10, fontWeight: "600" }}>{w.days} {w.days === 1 ? "day" : "days"} · {Math.round((w.wins / w.days) * 100)}% green</Text> : null}
+                  </View>
+                </Pressable>
+              </View>
+            )
+          })}
+        </View>
+      ) : view === "week" ? (
+        <View style={{ gap: 6 }}>
+          {(cells as Date[]).map((d, i) => {
+            const v = byDay.get(key(d))
+            const sel = picked === key(d)
+            const c = v == null ? colors.border : v >= 0 ? colors.green : colors.red
+            const future = d > today
+            return (
+              <Pressable key={i} onPress={() => pick(d, v)} style={{ flexDirection: "row", alignItems: "center", borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 12, opacity: future ? 0.4 : 1, borderWidth: sel ? 1.5 : 1, borderColor: sel ? colors.text : `${colors.border}99`, backgroundColor: `${colors.card}cc` }}>
+                <View style={{ width: 46 }}>
+                  <Text style={{ color: colors.muted, fontSize: 10.5, fontWeight: "800" }}>{WEEKDAY[i].toUpperCase()}</Text>
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>{d.getDate()}</Text>
+                </View>
+                <View style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: `${colors.border}55`, overflow: "hidden", marginHorizontal: 10 }}>
+                  {v != null ? <View style={{ width: `${Math.max(4, (Math.abs(v) / max) * 100)}%`, height: "100%", borderRadius: 5, backgroundColor: c }} /> : null}
+                </View>
+                <Text style={{ width: 92, textAlign: "right", color: v == null ? colors.muted : c, fontSize: 13, fontWeight: "800" }}>{v == null ? "no trades" : money(v, "USD", true)}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      ) : (
+        <>
+          <View style={{ flexDirection: "row", marginBottom: 4 }}>{DAY.map((d, i) => <Text key={i} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 10, fontWeight: "700" }}>{d}</Text>)}</View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {(cells as (Date | null)[]).map((d, i) => {
+              const v = d ? byDay.get(key(d)) : undefined
+              const a = v == null ? 0 : 0.18 + 0.62 * (Math.abs(v) / max)
+              const c = v == null ? colors.border : v >= 0 ? colors.green : colors.red
+              const sel = d && picked === key(d)
+              return (
+                <View key={i} style={{ width: `${100 / 7}%`, padding: 2 }}>
+                  {d ? (
+                    <Pressable onPress={() => pick(d, v)}
+                      style={{ aspectRatio: 1, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", backgroundColor: v == null ? `${colors.border}55` : tint(c, a), borderWidth: sel ? 1.5 : 0, borderColor: colors.text }}>
+                      <Text style={{ color: v == null ? colors.muted : colors.text, fontSize: 11, fontWeight: v == null ? "500" : "800" }}>{d.getDate()}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              )
+            })}
+          </View>
+        </>
+      )}
     </View>
   )
 }
