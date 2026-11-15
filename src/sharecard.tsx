@@ -23,28 +23,31 @@ export type CardData = {
   stats: { label: string; value: string; altValue?: string }[]  // altValue is shown when amounts are hidden; a stat without one is hidden then
 }
 
+// the picture is always dark, whatever the theme of the app: its own colours, not the theme
+const INK = { text: "#e8eaf0", muted: "#8b93a7", green: "#22d38a", red: "#f4566e" }
+
 function Card({ d, hide }: { d: CardData; hide: boolean }) {
-  const c = d.sign >= 0 ? colors.green : colors.red
+  const c = d.sign >= 0 ? INK.green : INK.red
   const stats = d.stats.filter((s) => !hide || s.altValue !== undefined)
   return (
-    <LinearGradient colors={["#0f1422", "#0b0e14", "#101a1a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 320, borderRadius: 22, padding: 22, borderWidth: 1, borderColor: `${c}55` }}>
+    <LinearGradient colors={["#0f1422", "#0b0e14", "#101a1a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 320, borderRadius: 22, padding: 22, borderWidth: 1, borderColor: `${c}55`, overflow: "hidden" }}>
       <View style={{ position: "absolute", top: -60, right: -60, width: 190, height: 190, borderRadius: 95, backgroundColor: `${c}22` }} />
-      <Brand size={34} />
-      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "800", letterSpacing: 1.6, textTransform: "uppercase", marginTop: 22 }}>{d.kicker}</Text>
-      <Text style={{ color: colors.text, fontSize: 19, fontWeight: "800", marginTop: 3 }}>{d.title}</Text>
-      <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{d.sub}</Text>
+      <Brand size={34} on="dark" />
+      <Text style={{ color: INK.muted, fontSize: 11, fontWeight: "800", letterSpacing: 1.6, textTransform: "uppercase", marginTop: 22 }}>{d.kicker}</Text>
+      <Text style={{ color: INK.text, fontSize: 19, fontWeight: "800", marginTop: 3 }}>{d.title}</Text>
+      <Text style={{ color: INK.muted, fontSize: 12, marginTop: 2 }}>{d.sub}</Text>
       <Text style={{ color: c, fontSize: 44, fontWeight: "900", letterSpacing: -1.5, marginTop: 14 }}>{hide ? d.alt : d.money}</Text>
-      {hide ? null : <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "700" }}>{d.alt}</Text>}
+      {hide ? null : <Text style={{ color: INK.muted, fontSize: 13, fontWeight: "700" }}>{d.alt}</Text>}
       {d.points && d.points.length > 1 ? <View style={{ marginTop: 10, marginLeft: -4 }}><Sparkline points={d.points} width={276} height={64} color={c} /></View> : null}
       <Row style={{ marginTop: 14, gap: 8, flexWrap: "wrap" }}>
         {stats.map((s) => (
-          <View key={s.label} style={{ flexGrow: 1, minWidth: 80, backgroundColor: `${colors.text}0d`, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10 }}>
-            <Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>{s.label}</Text>
-            <Text style={{ color: colors.text, fontSize: 14, fontWeight: "800", marginTop: 2 }}>{hide ? s.altValue : s.value}</Text>
+          <View key={s.label} style={{ flexGrow: 1, minWidth: 80, backgroundColor: `${INK.text}0d`, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10 }}>
+            <Text style={{ color: INK.muted, fontSize: 9.5, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>{s.label}</Text>
+            <Text style={{ color: INK.text, fontSize: 14, fontWeight: "800", marginTop: 2 }}>{hide ? s.altValue : s.value}</Text>
           </View>
         ))}
       </Row>
-      <Text style={{ color: colors.muted, fontSize: 11, marginTop: 18, textAlign: "center", letterSpacing: 0.4 }}>Journal your trades on tradezournal.com</Text>
+      <Text style={{ color: INK.muted, fontSize: 11, marginTop: 18, textAlign: "center", letterSpacing: 0.4 }}>Journal your trades on tradezournal.com</Text>
     </LinearGradient>
   )
 }
@@ -80,7 +83,7 @@ export function ShareSheet({ data, onClose }: { data: CardData | null; onClose: 
             </Pressable>
           </Row>
           <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 10, alignItems: "center" }}>
-            {data ? <View ref={ref} collapsable={false} style={{ padding: 14, backgroundColor: colors.bg, borderRadius: 26 }}><Card d={data} hide={hide} /></View> : null}
+            {data ? <View ref={ref} collapsable={false} style={{ padding: 14, backgroundColor: "#0b0e14", borderRadius: 26 }}><Card d={data} hide={hide} /></View> : null}
             <Row style={{ justifyContent: "space-between", alignSelf: "stretch", marginTop: 16 }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>Hide amounts</Text>

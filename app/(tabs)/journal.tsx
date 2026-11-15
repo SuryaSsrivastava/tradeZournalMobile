@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
-import { useState } from "react"
+import { useEffect, useRef, useState, type ComponentRef } from "react"
 import { Alert, Pressable, Text, View } from "react-native"
 import { api, type JournalTrade } from "../../src/api"
 import { AreaChart, Columns, Curve, PnlCalendar, RankBars } from "../../src/charts"
@@ -34,6 +34,8 @@ export default function Journal() {
   const [range, setRange] = useState(0)
   const [filter, setFilter] = useState<Filter>("all")
   const [day, setDay] = useState<Date | null>(null)
+  const jump = useRef<((windowY: number) => void) | null>(null)  // set by Screen: scrolls the page
+  const dayBox = useRef<ComponentRef<typeof View>>(null)
   const trades = useLoad(() => api.journalTrades(500), { cache: "trades500" })
   const accounts = useLoad(() => api.accounts(), { cache: "accounts" })
   const counts = useLoad(() => api.journalShotCounts(), { cache: "shotcounts" })
@@ -41,6 +43,13 @@ export default function Journal() {
   const every = trades.data ?? []
   const all = every.filter((t) => inScope(t, mode, accts))  // follows the account chosen on Home or here
   const other = (["backtest", "manual"] as const).map((m) => ({ m, n: every.filter((t) => inMode(t, m)).length })).filter((x) => x.m !== mode && x.n > 0)
+
+  // a day with trades was tapped on the calendar: bring its trades into view (a day with none stays where it is)
+  useEffect(() => {
+    if (!day || tab !== "calendar" || !all.some((t) => new Date(t.opened_at).toDateString() === day.toDateString())) return
+    const timer = setTimeout(() => dayBox.current?.measureInWindow((_x: number, wy: number) => jump.current?.(wy)), 120)
+    return () => clearTimeout(timer)
+  }, [day])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const star = async (t: JournalTrade) => {  // the "starred" tag: shows on the website too
     const on = t.tags.includes("starred")
@@ -51,7 +60,7 @@ export default function Journal() {
     { text: "Delete", style: "destructive", onPress: async () => { try { await api.deleteJournalTrade(t.id); showToast("Trade deleted"); await trades.refresh() } catch (e) { showToast(e instanceof Error ? e.message : "Could not delete.", false) } } },
   ])
   return (
-    <Screen refreshing={trades.refreshing} onRefresh={() => { void Promise.all([trades.refresh(), counts.refresh()]).then(() => showToast("Journal is up to date")) }}>
+    <Screen scrollTo={jump} refreshing={trades.refreshing} onRefresh={() => { void Promise.all([trades.refresh(), counts.refresh()]).then(() => showToast("Journal is up to date")) }}>
       <Title brand sub={`${all.length} trade${all.length === 1 ? "" : "s"}`} right={<Press onPress={() => router.push("/trade/new")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 }}><Ionicons name="add" size={18} color="#04110b" /><Text style={{ color: "#04110b", fontWeight: "800", fontSize: 13 }}>Log trade</Text></View></Press>}>Journal</Title>
       <ScopeBar trades={every} accounts={accounts.data?.accounts ?? []} />
       {trades.error ? <ErrorNote>{trades.error}</ErrorNote> : null}
@@ -75,7 +84,7 @@ export default function Journal() {
               : (
                 <>
                   <Card><PnlCalendar byDay={pnlByDay(all)} onPick={(d) => setDay(d)} />{!day ? <Muted style={{ textAlign: "center", marginTop: 10 }}>Tap a day to see its trades and screenshots.</Muted> : null}</Card>
-                  {day ? <DayTrades day={day} trades={all} counts={counts.data ?? {}} onOpen={(id) => router.push(`/trade/${id}`)} /> : null}
+                  {day ? <View ref={dayBox} collapsable={false}><DayTrades day={day} trades={all} counts={counts.data ?? {}} onOpen={(id) => router.push(`/trade/${id}`)} /></View> : null}
                 </>
               )}
           </Rise>

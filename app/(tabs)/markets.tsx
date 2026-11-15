@@ -327,6 +327,7 @@ function FilterSheet({ open, fields, sectors, rules, sectorSel, onApply, onClose
   }
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <Pressable style={{ flex: 1, backgroundColor: "#000000aa" }} onPress={onClose} />
       <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1, borderColor: colors.border, padding: 16, paddingBottom: 24, maxHeight: "85%" }}>
         <Row style={{ justifyContent: "space-between", marginBottom: 2 }}>
@@ -353,21 +354,6 @@ function FilterSheet({ open, fields, sectors, rules, sectorSel, onApply, onClose
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {fields.map((f) => <Pill key={f.key} active={field === f.key} onPress={() => setField(f.key)} color={colors.green}>{f.label}</Pill>)}
           </View>
-          {field ? (
-            <Row style={{ gap: 8, marginTop: 4, marginBottom: 14 }}>
-              <Row style={{ backgroundColor: `${colors.border}66`, borderRadius: radius.pill, padding: 3 }}>
-                {(["gt", "lt"] as const).map((o) => (
-                  <Pressable key={o} onPress={() => setOp(o)} style={{ width: 44, height: 34, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: op === o ? colors.card : "transparent" }}>
-                    <Text style={{ color: op === o ? colors.text : colors.muted, fontSize: 17, fontWeight: "800" }}>{o === "gt" ? ">" : "<"}</Text>
-                  </Pressable>
-                ))}
-              </Row>
-              <TextInput value={val} onChangeText={setVal} placeholder={t("value")} placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" onSubmitEditing={add} style={{ flex: 1, color: colors.text, fontSize: 15, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 9 }} />
-              <Pressable onPress={add} disabled={!ok} style={{ height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: colors.green, alignItems: "center", justifyContent: "center", opacity: ok ? 1 : 0.4 }}>
-                <Ionicons name="add" size={22} color="#04110b" />
-              </Pressable>
-            </Row>
-          ) : null}
           {sectors.length ? (
             <View style={{ marginTop: 6 }}>
               <Label>{t("sector")}</Label>
@@ -377,8 +363,30 @@ function FilterSheet({ open, fields, sectors, rules, sectorSel, onApply, onClose
             </View>
           ) : null}
         </ScrollView>
+        {field ? (
+          <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
+              <Text style={{ color: colors.green, fontSize: 13.5, fontWeight: "800" }}>{fields.find((f) => f.key === field)?.label ?? field}</Text>
+              <Pressable onPress={() => { setField(null); setVal("") }} hitSlop={10}><Ionicons name="close" size={18} color={colors.muted} /></Pressable>
+            </Row>
+            <Row style={{ gap: 8 }}>
+              <Row style={{ backgroundColor: `${colors.border}66`, borderRadius: radius.pill, padding: 3 }}>
+                {(["gt", "lt"] as const).map((o) => (
+                  <Pressable key={o} onPress={() => setOp(o)} style={{ width: 44, height: 34, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: op === o ? colors.card : "transparent" }}>
+                    <Text style={{ color: op === o ? colors.text : colors.muted, fontSize: 17, fontWeight: "800" }}>{o === "gt" ? ">" : "<"}</Text>
+                  </Pressable>
+                ))}
+              </Row>
+              <TextInput autoFocus value={val} onChangeText={setVal} placeholder={t("value")} placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" onSubmitEditing={add} style={{ flex: 1, color: colors.text, fontSize: 15, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 9 }} />
+              <Pressable onPress={add} disabled={!ok} style={{ height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: colors.green, alignItems: "center", justifyContent: "center", opacity: ok ? 1 : 0.4 }}>
+                <Ionicons name="add" size={22} color="#04110b" />
+              </Pressable>
+            </Row>
+          </View>
+        ) : null}
         <View style={{ marginTop: 12 }}><Button onPress={() => onApply(draft, sel)}>{t("apply")}</Button></View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }

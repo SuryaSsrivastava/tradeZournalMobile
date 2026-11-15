@@ -12,9 +12,10 @@ const REACH = 84  // how far a swipe has to go to count
 /**
  * A row that slides sideways to show an action behind it: right reveals `right`, left reveals `left`. Past REACH the phone ticks, and letting go runs the action; the row then springs back
  * (an action that removes the row does that on its own when the list refreshes). Vertical drags are left to the list, so scrolling still works. With `peek` the row shows by itself what it can
- * do, once: it slides to uncover each action in turn and comes back, so a new member sees that swiping is possible. Touching the row stops it.
+ * do, once: it slides to uncover each action in turn and comes back, so a new member sees that swiping is possible. Touching the row stops it. `gap` is the space the card leaves under itself
+ * (a Card has 12): the action panel stops there, so it is exactly as tall as the card and not as tall as the card plus its margin.
  */
-export function SwipeRow({ children, left, right, peek, onPeeked }: { children: ReactNode; left?: SwipeAction; right?: SwipeAction; peek?: boolean; onPeeked?: () => void }) {
+export function SwipeRow({ children, left, right, peek, onPeeked, gap = 12 }: { children: ReactNode; left?: SwipeAction; right?: SwipeAction; peek?: boolean; onPeeked?: () => void; gap?: number }) {
   const x = useRef(new Animated.Value(0)).current
   const armed = useRef(false)
   const props = useRef({ left, right })
@@ -58,7 +59,7 @@ export function SwipeRow({ children, left, right, peek, onPeeked }: { children: 
   })).current
 
   const panel = (a: SwipeAction, side: "left" | "right") => (
-    <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, [side === "right" ? "left" : "right"]: 0, width: REACH + 40, borderRadius: radius.md, backgroundColor: `${a.color}22`, borderWidth: 1, borderColor: `${a.color}55`, alignItems: side === "right" ? "flex-start" : "flex-end", justifyContent: "center", paddingHorizontal: 18,
+    <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: gap, [side === "right" ? "left" : "right"]: 0, width: REACH + 40, borderRadius: radius.lg, backgroundColor: `${a.color}22`, borderWidth: 1, borderColor: `${a.color}55`, alignItems: side === "right" ? "flex-start" : "flex-end", justifyContent: "center", paddingHorizontal: 18,
       opacity: x.interpolate({ inputRange: side === "right" ? [0, 24] : [-24, 0], outputRange: side === "right" ? [0, 1] : [1, 0], extrapolate: "clamp" }) }}>
       <View style={{ alignItems: "center" }}>
         <Ionicons name={a.icon} size={20} color={a.color} />

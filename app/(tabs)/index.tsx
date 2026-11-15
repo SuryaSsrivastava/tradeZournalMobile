@@ -20,7 +20,6 @@ import { PropCard } from "../../src/propcard"
 import { showToast } from "../../src/toast"
 import { StreakCard, WeekCard } from "../../src/progress"
 import { colors, impactColor, radius, themed } from "../../src/theme"
-import { usePrivacy } from "../../src/privacy"
 import { useTheme } from "../../src/themeprovider"
 import { Brand, Card, Label, Loading, Muted, Row, Screen, tone } from "../../src/ui"
 
@@ -31,7 +30,6 @@ export default function Home() {
   const { user } = useAuth()
   const router = useRouter()
   const theme = useTheme()
-  const privacy = usePrivacy()
   const accounts = useLoad(() => api.accounts(), { every: 60_000, cache: "accounts" })
   const trades = useLoad(() => api.journalTrades(500), { every: 120_000, cache: "trades500" })
   const rules = useLoad(() => api.discipline(), { every: 120_000, cache: "discipline" })
@@ -101,11 +99,6 @@ export default function Home() {
       <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
         <Brand size={38} />
         <Row style={{ gap: 10 }}>
-        <Press onPress={() => privacy.setHidden(!privacy.hidden)}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name={privacy.hidden ? "eye-off-outline" : "eye-outline"} size={21} color={colors.text} />
-          </View>
-        </Press>
         <Press onPress={() => theme.setMode(theme.scheme === "dark" ? "light" : "dark")}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name={theme.scheme === "dark" ? "sunny-outline" : "moon-outline"} size={21} color={colors.text} />
