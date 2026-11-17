@@ -10,6 +10,7 @@ import { SwipeRow } from "../../src/swipe"
 import { showToast } from "../../src/toast"
 import { colors, themed } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
+import { usePrivacy } from "../../src/privacy"
 
 type Tab = "holdings" | "watchlist" | "orders"
 const inr = (n: number | null | undefined, sign = false) => money(n, "INR", sign)
@@ -18,6 +19,7 @@ const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+"
 const big = { fontSize: 19, fontWeight: "800" } as const
 
 export default function Invest() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const [tab, setTab] = useState<Tab>("holdings")
   const [link, setLink] = useState<number | undefined>(undefined)
   const fresh = useRef(false)

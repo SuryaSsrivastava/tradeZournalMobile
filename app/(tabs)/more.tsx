@@ -19,6 +19,7 @@ const MENU: [IconName, string, string, string][] = [
 export default function More() {
   const { user, signOut } = useAuth()
   const router = useRouter()
+  const menu: [IconName, string, string, string][] = user?.is_admin ? [["copy-outline", "Copy trading", "/copy", "Admin: mirror one MT5 account onto others"], ...MENU] : MENU
 
   return (
     <Screen>
@@ -42,8 +43,8 @@ export default function More() {
       </Pressable>
 
       <Card style={{ paddingVertical: 4 }}>
-        {MENU.map(([icon, label, route, hint], i) => (
-          <Pressable key={route} onPress={() => router.push(route as never)} style={{ paddingVertical: 13, borderBottomWidth: i === MENU.length - 1 ? 0 : 1, borderBottomColor: `${colors.border}99` }}>
+        {menu.map(([icon, label, route, hint], i) => (
+          <Pressable key={route} onPress={() => router.push(route as never)} style={{ paddingVertical: 13, borderBottomWidth: i === menu.length - 1 ? 0 : 1, borderBottomColor: `${colors.border}99` }}>
             <Row style={{ justifyContent: "space-between" }}>
               <Row style={{ flex: 1 }}>
                 <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${colors.green}1a`, alignItems: "center", justifyContent: "center" }}><Ionicons name={icon} size={18} color={colors.green} /></View>

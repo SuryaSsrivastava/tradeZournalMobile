@@ -8,7 +8,7 @@ import { DayTrades } from "../../src/day"
 import { CountUp, Press, Rise, Ring, Stat } from "../../src/fx"
 import { dayLabel, money } from "../../src/format"
 import { useLoad } from "../../src/hooks"
-import { breakdown, byHour, byMonth, dailySeries, drawdownSeries, equityPoints, equityPointsR, groupByDay, holdMinutes, inRange, journalStats, maxDrawdown, minutesText, pnlByDay, pnlOf, rBuckets, rOf, rollingWinRate, sessionOf, streaks, weekdays } from "../../src/journal"
+import { breakdown, byHour, equityLabels, rollingLabels, byMonth, dailySeries, drawdownSeries, equityPoints, equityPointsR, groupByDay, holdMinutes, inRange, journalStats, maxDrawdown, minutesText, pnlByDay, pnlOf, rBuckets, rOf, rollingWinRate, sessionOf, streaks, weekdays } from "../../src/journal"
 import { ShotBadge } from "../../src/shots"
 import { SwipeRow } from "../../src/swipe"
 import { useHint } from "../../src/swipehint"
@@ -17,6 +17,7 @@ import { success } from "../../src/delight"
 import { inMode, inScope, ScopeBar, useScope } from "../../src/scope"
 import { colors, radius, themed } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
+import { usePrivacy } from "../../src/privacy"
 
 const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
 const usd = (n: number) => money(n, "USD", true)
@@ -29,6 +30,7 @@ const keep = (f: Filter, t: JournalTrade) => f === "all" || (f === "wins" ? pnlO
 const big = { fontSize: 19, fontWeight: "800" } as const
 
 export default function Journal() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
   const [range, setRange] = useState(0)
@@ -124,7 +126,7 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
   const buckets = rBuckets(t)
   const sessions = breakdown(t, (x) => [sessionOf(x.opened_at)])
   const sides = breakdown(t, (x) => [x.side])
-  const symbols = breakdown(t, (x) => [x.symbol])
+  const symbols = breakdown(t, (x) => [x.symbol])  // the server keeps one name per market (XAUUSD, not XAUUSDpro)
   const symbolRows = symbols.length > 6 ? [...symbols.slice(0, 4), ...symbols.slice(-2)] : symbols  // the best few and the worst two
   const rolling = rollingWinRate(t, 20)
   const months = byMonth(t)
@@ -154,7 +156,7 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
                 : <CountUp key={`${range}r`} value={totalR} format={(n) => `${sgn(n)}R`} style={{ color: tone(totalR), fontSize: 36, fontWeight: "800", letterSpacing: -1.2 }} />}
               <Row><Pill active={unit === "usd"} onPress={() => setUnit("usd")}>$</Pill><Pill active={unit === "r"} onPress={() => setUnit("r")}>R</Pill></Row>
             </Row>
-            <View style={{ marginTop: 8 }}><Curve key={`${range}${unit}`} points={unit === "usd" ? equityPoints(t) : equityPointsR(t)} height={130} /></View>
+            <View style={{ marginTop: 8 }}><Curve key={`${range}${unit}`} points={unit === "usd" ? equityPoints(t) : equityPointsR(t)} height={130} format={unit === "usd" ? usd : (n) => `${sgn(n)}R`} labels={equityLabels(t)} /></View>
             <Row style={{ justifyContent: "space-between", marginTop: 8 }}>
               <Muted>Max drawdown <Text style={{ color: colors.red, fontWeight: "800" }}>{money(-dd)}</Text></Muted>
               <Muted>Best day <Text style={{ color: colors.green, fontWeight: "800" }}>{usd(best)}</Text></Muted>
@@ -203,7 +205,7 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
           {underwater.length > 2 ? (
             <Card delay={240}>
               <Row style={{ justifyContent: "space-between" }}><Label>Drawdown</Label><Muted>now <Text style={{ color: underwater[underwater.length - 1] < 0 ? colors.red : colors.green, fontWeight: "800" }}>{money(underwater[underwater.length - 1])}</Text> · worst <Text style={{ color: colors.red, fontWeight: "800" }}>{money(-dd)}</Text></Muted></Row>
-              <AreaChart key={range} points={underwater} color={colors.red} fillTo="top" baseline={0} height={90} />
+              <AreaChart key={range} points={underwater} color={colors.red} fillTo="top" baseline={0} height={90} format={(n) => money(n)} labels={equityLabels(t)} />
               <Muted style={{ marginTop: 6 }}>How far below your best point the account has been. The flat line at the top is a new high.</Muted>
             </Card>
           ) : null}
@@ -217,7 +219,7 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
           {rolling.length >= 3 ? (
             <Card delay={320}>
               <Row style={{ justifyContent: "space-between" }}><Label>Win rate, last 20 trades</Label><Muted>now <Text style={{ color: colors.text, fontWeight: "800" }}>{rolling[rolling.length - 1].toFixed(0)}%</Text></Muted></Row>
-              <AreaChart key={range} points={rolling} color={colors.blue} baseline={50} from={0} to={100} height={90} />
+              <AreaChart key={range} points={rolling} color={colors.blue} baseline={50} from={0} to={100} height={90} format={(n) => `${n.toFixed(0)}%`} labels={rollingLabels(t, 20)} />
             </Card>
           ) : null}
 

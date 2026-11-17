@@ -21,7 +21,6 @@ import { colors } from "../src/theme"
 import { LanguageProvider } from "../src/i18n"
 import { PrivacyProvider, usePrivacy } from "../src/privacy"
 import { ThemeProvider, useTheme } from "../src/themeprovider"
-import { takeReopenSettings } from "../src/themeflag"
 
 // the share handler, when this build has the native module (older development builds do not)
 type ShareState = { hasShareIntent: boolean; shareIntent: { files?: SharedFile[] | null }; resetShareIntent: () => void }
@@ -36,9 +35,6 @@ function Gate() {
   const segments = useSegments()
   const router = useRouter()
   const { hasShareIntent, shareIntent, resetShareIntent } = useShare()
-
-  // the theme was just changed: the screens were drawn again from the start, so go back to Settings where the choice was made
-  useEffect(() => { if (ready && user && takeReopenSettings()) setTimeout(() => router.push("/settings"), 0) }, [ready, user, router])
 
   // a picture was shared to the app: open "Add to a trade" (once signed in)
   useEffect(() => {
@@ -109,6 +105,7 @@ function Gate() {
       <Stack.Screen name="profile" options={{ title: "Profile" }} />
       <Stack.Screen name="settings" options={{ title: "Settings" }} />
       <Stack.Screen name="alerts" options={{ title: "Alerts" }} />
+      <Stack.Screen name="copy" options={{ title: "Copy trading" }} />
       <Stack.Screen name="forward-tests" options={{ title: "Forward tests" }} />
       <Stack.Screen name="insights" options={{ title: "Trading insights" }} />
       <Stack.Screen name="price-alerts" options={{ title: "Price alerts" }} />
@@ -132,11 +129,11 @@ function Gate() {
 
 function Themed() {
   const { scheme } = useTheme()
-  const { hidden, loaded } = usePrivacy()
+  const { loaded } = usePrivacy()
   return (
     <>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
-      {loaded ? <ScopeProvider><LockProvider><Fragment key={`${scheme}-${hidden}`}><Gate /><OfflineBanner /><Toaster /></Fragment></LockProvider></ScopeProvider> : null}
+      {loaded ? <ScopeProvider><LockProvider><Fragment key={scheme}><Gate /><OfflineBanner /><Toaster /></Fragment></LockProvider></ScopeProvider> : null}
       <AnimatedSplash />
     </>
   )

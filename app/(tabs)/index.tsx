@@ -14,7 +14,7 @@ import { useLoad } from "../../src/hooks"
 import { LiveTrades } from "../../src/live"
 import { chosenAccounts, inScope, ScopeBar, useScope } from "../../src/scope"
 import { CountdownRing, GuardRailsCard, SessionClock, Ticker, type TickerItem } from "../../src/homefx"
-import { equityPoints, journalStats } from "../../src/journal"
+import { equityPoints, journalStats, equityLabels } from "../../src/journal"
 import { BadgeToast, useNewBadges } from "../../src/delight"
 import { PropCard } from "../../src/propcard"
 import { showToast } from "../../src/toast"
@@ -22,11 +22,13 @@ import { StreakCard, WeekCard } from "../../src/progress"
 import { colors, impactColor, radius, themed } from "../../src/theme"
 import { useTheme } from "../../src/themeprovider"
 import { Brand, Card, Label, Loading, Muted, Row, Screen, tone } from "../../src/ui"
+import { usePrivacy } from "../../src/privacy"
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"]
 const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
 
 export default function Home() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const { user } = useAuth()
   const router = useRouter()
   const theme = useTheme()
@@ -126,7 +128,7 @@ export default function Home() {
         {today !== 0 ? <LinearGradient pointerEvents="none" colors={[`${tone(today)}${today > 0 ? "26" : "1c"}`, "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20 }} /> : null}
         <Muted>{picked ? "Today · selected accounts" : "Today"}</Muted>
         {!accounts.loaded && !trades.loaded ? <Loading /> : <CountUp value={today} format={(n) => money(n, "USD", true)} style={{ color: tone(today), fontSize: 38, fontWeight: "800", letterSpacing: -1.2 }} />}
-        <View style={{ marginTop: 10 }}>{all.length > 1 ? <Curve points={equityPoints(all)} height={100} /> : <Muted>Your equity curve appears after your first trades.</Muted>}</View>
+        <View style={{ marginTop: 10 }}>{all.length > 1 ? <Curve points={equityPoints(all)} height={100} format={(n) => money(n, "USD", true)} labels={equityLabels(all)} /> : <Muted>Your equity curve appears after your first trades.</Muted>}</View>
         {all.length > 0 ? <Row style={{ justifyContent: "space-between", marginTop: 6 }}><Muted>All time</Muted><Text style={{ color: tone(st.net), fontSize: 13, fontWeight: "800" }}>{money(st.net, "USD", true)}</Text></Row> : null}
       </Card>
 

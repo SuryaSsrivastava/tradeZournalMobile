@@ -7,6 +7,7 @@ import { Press, Pulse, Rise } from "../src/fx"
 import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
 import { Button, Card, Empty, ErrorNote, Loading, Muted, Row, Screen } from "../src/ui"
+import { usePrivacy } from "../src/privacy"
 
 const STATUS: Record<Account["status"], { text: string; color: string }> = {
   active: { text: "Active", color: colors.green }, connecting: { text: "Connecting", color: colors.amber }, error: { text: "Needs attention", color: colors.red }, paused: { text: "Paused", color: colors.muted },
@@ -14,6 +15,7 @@ const STATUS: Record<Account["status"], { text: string; color: string }> = {
 
 /** Every trading account, with a way to add one and to open any for editing, pausing or removing. */
 export default function Accounts() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const router = useRouter()
   const accounts = useLoad(() => api.accounts(), { every: 60_000, cache: "accounts" })
   const trades = useLoad(() => api.journalTrades(1000))

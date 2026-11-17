@@ -45,7 +45,7 @@ export default function Asset() {
                 <Muted>today</Muted>
               </View>
             </Row>
-            <View style={{ marginTop: 12 }}>{line.length > 1 ? <Curve points={line} height={130} /> : <Muted>No price history.</Muted>}</View>
+            <View style={{ marginTop: 12 }}>{line.length > 1 ? <Curve points={line} height={130} format={show} /> : <Muted>No price history.</Muted>}</View>
             <Row style={{ justifyContent: "space-between", marginTop: 8 }}>
               <Row>{RANGES.map(([k]) => <Pill key={k} active={range === k} onPress={() => setRange(k)} color={colors.blue}>{k}</Pill>)}</Row>
               <Text style={{ color: tone(change), fontSize: 13, fontWeight: "800" }}>{pct(change)}</Text>

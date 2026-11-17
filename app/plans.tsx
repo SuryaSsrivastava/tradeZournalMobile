@@ -11,12 +11,14 @@ import { useLoad } from "../src/hooks"
 import { OfferTile } from "../src/offer"
 import { colors } from "../src/theme"
 import { Button, Card, ErrorNote, Field, Label, Loading, Muted, Pill, Row, Screen } from "../src/ui"
+import { usePrivacy } from "../src/privacy"
 
 const date = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : "")
 const n = (v: number | null | undefined, one: string, many: string) => (v == null ? `Unlimited ${many}` : `${v.toLocaleString()} ${v === 1 ? one : many}`)
 
 /** Plans and pricing, in rupees in India and dollars elsewhere. Only the downloaded app sells (see CAN_SELL): store builds never reach this screen's buying parts. */
 export default function Plans() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const router = useRouter()
   const info = useLoad(() => api.plans())
   const price = useLoad(() => api.pricing())

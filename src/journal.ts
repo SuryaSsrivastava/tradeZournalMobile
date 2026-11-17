@@ -38,6 +38,22 @@ export function equityPoints(trades: JournalTrade[]): number[] {
   return [0, ...[...trades].sort((a, b) => +new Date(a.exit_at ?? a.opened_at) - +new Date(b.exit_at ?? b.opened_at)).map((t) => (run += pnlOf(t)))]
 }
 
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" })
+
+/** What each point of the equity and drawdown curves stands for (the same order as equityPoints): the start, then each trade with the day it ended. */
+export function equityLabels(trades: JournalTrade[]): string[] {
+  const sorted = [...trades].sort((a, b) => +new Date(a.exit_at ?? a.opened_at) - +new Date(b.exit_at ?? b.opened_at))
+  return ["Start", ...sorted.map((t, i) => `Trade ${i + 1} · ${shortDate(t.exit_at ?? t.opened_at)}`)]
+}
+
+/** The same for the rolling win rate: each point covers a window of trades, up to the day the last of them opened. */
+export function rollingLabels(trades: JournalTrade[], window = 20): string[] {
+  const asc = [...trades].sort((a, b) => +new Date(a.opened_at) - +new Date(b.opened_at))
+  const out: string[] = []
+  for (let i = window - 1; i < asc.length; i++) out.push(`Trades ${i - window + 2}–${i + 1} · to ${shortDate(asc[i].opened_at)}`)
+  return out
+}
+
 /** Result per calendar day, keyed like the calendar's cells. */
 export function pnlByDay(trades: JournalTrade[]): Map<string, number> {
   const m = new Map<string, number>()

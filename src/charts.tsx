@@ -1,18 +1,57 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Ionicons } from "@expo/vector-icons"
-import { Animated, Easing, Pressable, Text, View } from "react-native"
-import Svg, { Defs, Line, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg"
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native"
+import Svg, { Circle, Defs, Line, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg"
 import { Sparkline, tick, useReducedMotion } from "./fx"
 import { money } from "./format"
 import { colors, radius } from "./theme"
 
-/** A line that fills the width of whatever holds it. */
-export function Curve({ points, height = 90, color }: { points: number[]; height?: number; color?: string }) {
+/**
+ * Touch a chart and a marker follows the finger: a line, a dot on the curve, and a small label with the value and what it stands for. It stays a moment after the finger lifts. Put it over a chart
+ * of `w` by `height` whose points are spread evenly across the width; `yOf` gives the height of a value, the same one the chart draws with.
+ */
+function Scrub({ points, w, height, yOf, color, format, labels }: { points: number[]; w: number; height: number; yOf: (v: number) => number; color: string; format: (v: number) => string; labels?: string[] }) {
+  const [i, setI] = useState<number | null>(null)
+  const last = useRef(-1)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  const n = points.length
+  const move = (x: number) => {
+    const k = Math.max(0, Math.min(n - 1, Math.round((x / Math.max(1, w)) * (n - 1))))
+    if (k !== last.current) { last.current = k; tick(); setI(k) }
+  }
+  const x = i == null ? 0 : (i / (n - 1)) * w
+  const boxW = 124
+  return (
+    <View style={StyleSheet.absoluteFill}
+      onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} onResponderTerminationRequest={() => false}
+      onResponderGrant={(e) => { if (timer.current) clearTimeout(timer.current); move(e.nativeEvent.locationX) }}
+      onResponderMove={(e) => move(e.nativeEvent.locationX)}
+      onResponderRelease={() => { timer.current = setTimeout(() => { last.current = -1; setI(null) }, 2200) }}>
+      {i != null ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Svg width={w} height={height}>
+            <Line x1={x} x2={x} y1={0} y2={height} stroke={colors.muted} strokeOpacity={0.6} strokeWidth={1} strokeDasharray={[3, 3]} />
+            <Circle cx={x} cy={yOf(points[i])} r={5} fill={color} stroke={colors.card} strokeWidth={2} />
+          </Svg>
+          <View style={{ position: "absolute", top: -6, left: Math.max(0, Math.min(w - boxW, x - boxW / 2)), width: boxW, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 8, alignItems: "center" }}>
+            <Text style={{ color, fontSize: 13, fontWeight: "800" }}>{format(points[i])}</Text>
+            {labels?.[i] ? <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 10, fontWeight: "600" }}>{labels[i]}</Text> : null}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+/** A line that fills the width of whatever holds it. `format` and `labels` (what each point stands for) are shown when it is touched. */
+export function Curve({ points, height = 90, color, format = (v) => v.toFixed(2), labels }: { points: number[]; height?: number; color?: string; format?: (v: number) => string; labels?: string[] }) {
   const [w, setW] = useState(0)
   const c = color ?? (points.length > 1 && points[points.length - 1] < points[0] ? colors.red : colors.green)
   return (
     <View onLayout={(e) => setW(Math.floor(e.nativeEvent.layout.width))} style={{ height }}>
       {w > 0 && points.length > 1 ? <Sparkline points={points} width={w} height={height} color={c} /> : null}
+      {w > 0 && points.length > 1 ? (() => { const lo = Math.min(...points), span = Math.max(...points) - lo || 1; return <Scrub points={points} w={w} height={height} color={c} format={format} labels={labels} yOf={(v) => height - 4 - ((v - lo) / span) * (height - 8)} /> })() : null}
     </View>
   )
 }
@@ -302,7 +341,7 @@ export function RankBars({ rows, format }: { rows: { key: string; value: number;
  * A line with a filled area that draws itself in. `baseline` is a dashed reference line (zero for a drawdown, 50 for a win rate); the fill runs from the line to `fillTo`.
  * `from`/`to` fix the scale when it should not follow the data (a win rate always spans 0 to 100).
  */
-export function AreaChart({ points, height = 96, color = colors.green, baseline, fillTo = "bottom", from, to }: { points: number[]; height?: number; color?: string; baseline?: number; fillTo?: "top" | "bottom"; from?: number; to?: number }) {
+export function AreaChart({ points, height = 96, color = colors.green, baseline, fillTo = "bottom", from, to, format = (v) => v.toFixed(1), labels }: { points: number[]; height?: number; color?: string; baseline?: number; fillTo?: "top" | "bottom"; from?: number; to?: number; format?: (v: number) => string; labels?: string[] }) {
   const [w, setW] = useState(0)
   const p = useGrow(points.length + ":" + points.slice(-3).map((v) => v.toFixed(1)).join(","), 1100)
   const n = points.length
@@ -325,6 +364,7 @@ export function AreaChart({ points, height = 96, color = colors.green, baseline,
           <Path d={line} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={[len * p, len]} />
         </Svg>
       ) : null}
+      {w > 0 ? <Scrub points={points} w={w} height={height} color={color} format={format} labels={labels} yOf={y} /> : null}
     </View>
   )
 }

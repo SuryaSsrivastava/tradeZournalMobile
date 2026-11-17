@@ -10,9 +10,11 @@ import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
 import { PlanNote } from "../src/upgrade"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../src/ui"
+import { usePrivacy } from "../src/privacy"
 
 /** Live open positions of a connected MetaTrader account, refreshed every few seconds while this screen is open. Admins can close a trade here, as on the website (the server refuses anyone else). */
 export default function Positions() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const accounts = useLoad(() => api.accounts())
   const usable: Account[] = (accounts.data?.accounts ?? []).filter((a) => a.kind === "metaapi" || a.kind === "webhook")
   const [picked, setPicked] = useState<number | null>(null)

@@ -8,10 +8,8 @@ import { livePreviewAvailable, startLivePreview, stopLivePreview } from "../src/
 import { useLock } from "../src/lock"
 import { registerForPush, unregisterPush } from "../src/push"
 import { colors } from "../src/theme"
-import { markReopenSettings } from "../src/themeflag"
 import { usePrivacy } from "../src/privacy"
-import { useTheme } from "../src/themeprovider"
-import { Button, Card, ErrorNote, Label, Muted, Pill, Row, Screen } from "../src/ui"
+import { Button, Card, ErrorNote, Label, Muted, Row, Screen } from "../src/ui"
 
 export default function Settings() {
   const { user, signOut } = useAuth()
@@ -23,7 +21,6 @@ export default function Settings() {
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState<"push" | "test" | null>(null)
   const lock = useLock()
-  const theme = useTheme()
   const privacy = usePrivacy()
   const [lockNote, setLockNote] = useState<{ ok: boolean; text: string } | null>(null)
   const toggleLock = async (on: boolean) => { const r = await lock.setEnabled(on); setLockNote({ ok: r.ok, text: r.message }) }
@@ -31,19 +28,20 @@ export default function Settings() {
   useEffect(() => { api.prefs().then((p) => { setPush(p.push !== false); setPromos(p.promos !== false); setReports({ trade_review: p.trade_review !== false, briefing: p.briefing !== false, streak_reminder: p.streak_reminder !== false, digest: p.digest !== false, daily_recap: p.daily_recap === true, monthly_report: p.monthly_report !== false }) }).catch(() => {}) }, [])
 
   const togglePush = async (on: boolean) => {
+    setPush(on)  // the switch moves at once; it goes back below if the change did not work
     setBusy("push"); setNote(null)
     try {
       if (on) {
         const r = await registerForPush()
         setNote({ ok: r.ok, text: r.message })
-        if (!r.ok) return
+        if (!r.ok) { setPush(false); return }
       } else {
         await unregisterPush()
         setNote({ ok: true, text: "Push notifications are off for this phone." })
       }
       await api.savePrefs({ push: on })
-      setPush(on)
     } catch (e) {
+      setPush(!on)
       setNote({ ok: false, text: e instanceof Error ? e.message : "Could not change that." })
     } finally {
       setBusy(null)
@@ -53,9 +51,10 @@ export default function Settings() {
   useEffect(() => { void liveNotificationEnabled().then(setLive) }, [])
   const toggleLive = async (on: boolean) => {
     setLiveNote(null)
+    setLive(on)
     const r = await setLiveNotificationEnabled(on)
     setLiveNote({ ok: r.ok, text: r.message })
-    if (r.ok) setLive(on)
+    if (!r.ok) setLive(!on)
   }
 
   const preview = async () => {
@@ -100,21 +99,12 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <Label>Appearance</Label>
-        <Row>
-          {(["system", "dark", "light"] as const).map((m) => (
-            <Pill key={m} active={theme.mode === m} onPress={() => { if (theme.mode !== m) { markReopenSettings(); theme.setMode(m) } }}>{m === "system" ? "Match phone" : m === "dark" ? "Dark" : "Light"}</Pill>
-          ))}
-        </Row>
-      </Card>
-
-      <Card>
         <Row style={{ justifyContent: "space-between" }}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>Hide amounts</Text>
             <Muted style={{ marginTop: 3 }}>Balances, profit and loss show as •••• on every screen. Prices of stocks and markets stay visible.</Muted>
           </View>
-          <Switch value={privacy.hidden} onValueChange={(v) => { markReopenSettings(); privacy.setHidden(v) }} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+          <Switch value={privacy.hidden} onValueChange={privacy.setHidden} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
         </Row>
       </Card>
 

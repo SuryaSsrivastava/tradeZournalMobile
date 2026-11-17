@@ -5,7 +5,7 @@ import { useRef, useState } from "react"
 import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native"
 import { captureRef } from "react-native-view-shot"
 import { Sparkline } from "./fx"
-import { colors } from "./theme"
+import { colors, currentScheme } from "./theme"
 import { Brand, Button, ErrorNote, Muted, Row } from "./ui"
 
 /**
@@ -23,16 +23,20 @@ export type CardData = {
   stats: { label: string; value: string; altValue?: string }[]  // altValue is shown when amounts are hidden; a stat without one is hidden then
 }
 
-// the picture is always dark, whatever the theme of the app: its own colours, not the theme
-const INK = { text: "#e8eaf0", muted: "#8b93a7", green: "#22d38a", red: "#f4566e" }
+// the picture has its own colours (so it reads the same wherever it is posted): dark or light, following the theme of the app unless the member flips it
+const INKS = {
+  dark: { text: "#e8eaf0", muted: "#8b93a7", green: "#22d38a", red: "#f4566e", gradient: ["#0f1422", "#0b0e14", "#101a1a"] as const, frame: "#0b0e14" },
+  light: { text: "#141a26", muted: "#5d667a", green: "#0e9f64", red: "#d93a54", gradient: ["#ffffff", "#f4f6fa", "#e6f6ee"] as const, frame: "#f4f6fa" },
+}
 
-function Card({ d, hide }: { d: CardData; hide: boolean }) {
+function Card({ d, hide, look }: { d: CardData; hide: boolean; look: "dark" | "light" }) {
+  const INK = INKS[look]
   const c = d.sign >= 0 ? INK.green : INK.red
   const stats = d.stats.filter((s) => !hide || s.altValue !== undefined)
   return (
-    <LinearGradient colors={["#0f1422", "#0b0e14", "#101a1a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 320, borderRadius: 22, padding: 22, borderWidth: 1, borderColor: `${c}55`, overflow: "hidden" }}>
+    <LinearGradient colors={INK.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 320, borderRadius: 22, padding: 22, borderWidth: 1, borderColor: `${c}55`, overflow: "hidden" }}>
       <View style={{ position: "absolute", top: -60, right: -60, width: 190, height: 190, borderRadius: 95, backgroundColor: `${c}22` }} />
-      <Brand size={34} on="dark" />
+      <Brand size={34} on={look} />
       <Text style={{ color: INK.muted, fontSize: 11, fontWeight: "800", letterSpacing: 1.6, textTransform: "uppercase", marginTop: 22 }}>{d.kicker}</Text>
       <Text style={{ color: INK.text, fontSize: 19, fontWeight: "800", marginTop: 3 }}>{d.title}</Text>
       <Text style={{ color: INK.muted, fontSize: 12, marginTop: 2 }}>{d.sub}</Text>
@@ -55,6 +59,8 @@ function Card({ d, hide }: { d: CardData; hide: boolean }) {
 export function ShareSheet({ data, onClose }: { data: CardData | null; onClose: () => void }) {
   const ref = useRef<React.ComponentRef<typeof View>>(null)
   const [hide, setHide] = useState(false)
+  const [look, setLook] = useState<"dark" | "light" | null>(null)  // null: follow the theme of the app
+  const picture = look ?? currentScheme()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,7 +89,14 @@ export function ShareSheet({ data, onClose }: { data: CardData | null; onClose: 
             </Pressable>
           </Row>
           <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 10, alignItems: "center" }}>
-            {data ? <View ref={ref} collapsable={false} style={{ padding: 14, backgroundColor: "#0b0e14", borderRadius: 26 }}><Card d={data} hide={hide} /></View> : null}
+            {data ? <View ref={ref} collapsable={false} style={{ padding: 14, backgroundColor: INKS[picture].frame, borderRadius: 26 }}><Card d={data} hide={hide} look={picture} /></View> : null}
+            <Row style={{ alignSelf: "stretch", marginTop: 14, gap: 8 }}>
+              {(["dark", "light"] as const).map((k) => (
+                <Pressable key={k} onPress={() => setLook(k)} style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: picture === k ? colors.green : colors.border, backgroundColor: picture === k ? `${colors.green}1f` : "transparent" }}>
+                  <Text style={{ color: picture === k ? colors.text : colors.muted, fontSize: 13, fontWeight: "800" }}>{k === "dark" ? "Dark" : "Light"}</Text>
+                </Pressable>
+              ))}
+            </Row>
             <Row style={{ justifyContent: "space-between", alignSelf: "stretch", marginTop: 16 }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>Hide amounts</Text>

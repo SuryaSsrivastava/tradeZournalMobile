@@ -46,12 +46,17 @@ export type Portfolio = { holdings: Holding[]; problems: { link_id: number; name
 export type WatchStock = { id: number; market: string; symbol: string; name: string; added_price: number | null; added_at: string; price: number | null; chg_1d: number | null; pe: number | null; market_cap: number | null; sector: string; investable: boolean }
 export type InvestOrder = { id: number; broker: string; side: string; symbol: string; qty: number; order_type: string; price: number | null; status: string; broker_order_id: string; message: string; created_at: string }
 export type JournalTrade = {
-  id: number; symbol: string; side: "Long" | "Short"; setup: string; entry: number; exit: number; qty: number; risk: number; opened_at: string; exit_at: string | null
+  id: number; symbol: string; broker_symbol?: string; side: "Long" | "Short"; setup: string; entry: number; exit: number; qty: number; risk: number; opened_at: string; exit_at: string | null
   emotions: string[]; tags: string[]; rating: number; note: string; source: string; broker: string; fees: number; pnl: number | null
   stop: number | null; target: number | null; followed_plan: boolean | null; account_id: number | null; manual: boolean
 }
 export type NewTrade = { symbol: string; side: "Long" | "Short"; entry: number; exit: number; qty: number; risk: number; setup?: string; rating?: number; note?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
 export type TradeEdit = { note?: string; rating?: number; setup?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
+export type CopyEngine = { id: number; state: string; detail: string; dry: boolean; master_open: number; copies: number; last_cycle_at: string }
+export type CopyLink = { id: number; master_id: number; master: string; follower_id: number; follower: string; enabled: boolean; dry_run: boolean; mode: "multiplier" | "fixed"; value: number; max_lot: number; copy_sltp: boolean; symbol_map: Record<string, string>; max_age_seconds: number; max_slip_points: number; max_open: number; max_dd_pct: number; engine: CopyEngine | null; sync?: { ok: boolean; problems: string[] } }
+export type CopyEvent = { id: number; link_id: number; at: string; action: string; symbol: string; side: string; master_ticket: number; volume: number; status: string; detail: string }
+export type CopyOverview = { links: CopyLink[]; accounts: { id: number; name: string; user_id: number }[]; engine: { reachable: boolean; error: string; trade_enabled: boolean; halted: boolean } }
+export type CopyPatch = Partial<Pick<CopyLink, "enabled" | "dry_run" | "mode" | "value" | "max_lot" | "copy_sltp" | "symbol_map" | "max_age_seconds" | "max_slip_points" | "max_open" | "max_dd_pct">> & { confirm_live?: boolean }
 export type Market = "nse" | "us" | "crypto" | "forex"
 export type ScreenRow = { symbol: string; name: string; sector: string; market: string; price?: number | null; chg_1d?: number | null; ret_1y?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null; div_yield?: number | null; volume_24h?: number | null; [k: string]: unknown }
 export type ScreenResult = { total: number; matched: number; updated_at: string | null; rows: ScreenRow[]; spec?: ScreenSpec }
@@ -224,6 +229,13 @@ export const api = {
   /** Read an account's new trades from MetaTrader now. `auto` is the app doing it by itself on opening the account: the same sync, without the "your trades are in" notice. */
   syncAccount: (id: number, auto = false) => request<{ added: number; error: string | null; connecting?: boolean; skipped?: boolean }>(`/accounts/${id}/sync?auto=${auto}`, { method: "POST" }),
   accountLive: (id: number) => request<LiveView>(`/accounts/${id}/live`),
+  copyOverview: () => request<CopyOverview>("/admin/copy"),
+  copyCreateMany: (b: { master_id: number; follower_ids: number[]; mode: string; value: number; max_lot: number }) => request<{ links: CopyLink[]; skipped: number[]; sync: { ok: boolean; problems: string[] } }>("/admin/copy/bulk", { method: "POST", body: JSON.stringify({ ...b, copy_sltp: true, symbol_map: {} }) }),
+  copyUpdate: (id: number, b: CopyPatch) => request<CopyLink>(`/admin/copy/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  copyDelete: (id: number) => request<{ sync: { ok: boolean; problems: string[] } }>(`/admin/copy/${id}`, { method: "DELETE" }),
+  copyHalt: (on: boolean) => request<{ ok: boolean; error?: string }>("/admin/copy/halt", { method: "POST", body: JSON.stringify({ on }) }),
+  copyCloseCopies: (id: number) => request<{ ok: boolean; closed?: number; error?: string }>(`/admin/copy/${id}/close-copies`, { method: "POST" }),
+  copyEvents: () => request<CopyEvent[]>("/admin/copy/events?limit=100"),
   forwardTests: () => request<Forward[]>("/forward"),
   setForwardStatus: (id: number, status: "active" | "stopped") => request<Forward>(`/forward/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
   deleteForward: (id: number) => request<void>(`/forward/${id}`, { method: "DELETE" }),

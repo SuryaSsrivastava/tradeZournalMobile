@@ -11,8 +11,10 @@ import { pnlOf, rOf, splitLabels } from "../../src/journal"
 import { ShareSheet, type CardData } from "../../src/sharecard"
 import { TradeShots } from "../../src/shots"
 import { Button, Card, ErrorNote, Field, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
+import { usePrivacy } from "../../src/privacy"
 
 export default function TradeDetail() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const all = useLoad(() => api.journalTrades(1000), { cache: "trades1000", deps: [id] })
@@ -69,7 +71,7 @@ export default function TradeDetail() {
   return (
     <Screen padTop={false}>
       <ShareSheet data={card} onClose={() => setCard(null)} />
-      <Title sub={`${fullTime(t.opened_at)}${t.source !== "manual" ? ` · ${t.broker || t.source}` : ""}`}>{t.side} {t.symbol}</Title>
+      <Title sub={`${fullTime(t.opened_at)}${t.source !== "manual" ? ` · ${t.broker || t.source}` : ""}${t.broker_symbol && t.broker_symbol.toUpperCase() !== t.symbol ? ` · ${t.broker_symbol}` : ""}`}>{t.side} {t.symbol}</Title>
       <Card>
         <Text style={{ color: tone(p), fontSize: 30, fontWeight: "800" }}>{money(p, "USD", true)}</Text>
         <Muted>{rOf(t) >= 0 ? "+" : ""}{rOf(t).toFixed(2)}R</Muted>

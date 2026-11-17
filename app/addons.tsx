@@ -10,6 +10,7 @@ import { Rise } from "../src/fx"
 import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
 import { Button, Card, ErrorNote, Label, Loading, Muted, Row, Screen } from "../src/ui"
+import { usePrivacy } from "../src/privacy"
 
 const KEYS: [keyof AddonPack, string, string][] = [["ai_requests", "AI requests", "AI request"], ["explanations", "Trade explanations", "Trade explanation"], ["connected_accounts", "Connected accounts", "Connected account"], ["coach_reviews", "AI coach reviews", "AI coach review"]]
 const HELD: [string, string][] = [...KEYS.map(([k, name]) => [k as string, name] as [string, string]), ["strategies", "Saved strategies"]]  // every kind of credit a member can hold
@@ -17,6 +18,7 @@ const date = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString([]
 
 /** Extra AI requests, explanations, accounts and coach reviews on top of the plan, bought once. Pro and Elite members only; they last as long as the plan does and are used after the plan's own allowance. */
 export default function Addons() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const router = useRouter()
   const list = useLoad(() => api.addons())
   const credits = useLoad(() => api.addonCredits())

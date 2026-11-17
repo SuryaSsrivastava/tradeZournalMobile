@@ -12,11 +12,13 @@ import { clearShared, getShared } from "../src/sharebox"
 import { PlanNote } from "../src/upgrade"
 import { colors } from "../src/theme"
 import { Button, Card, Empty, ErrorNote, Field, Label, Loading, Muted, Row, Screen, tone } from "../src/ui"
+import { usePrivacy } from "../src/privacy"
 
 const MAX_CHARS = 2_800_000  // the server keeps a picture up to 3 million characters as text
 
 /** A picture shared to TradeZournal (from the gallery, TradingView, a chat): choose the trade it belongs to and it is added as a screenshot, shrunk to a sensible size first. */
 export default function ShareToTrade() {
+  usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const router = useRouter()
   const files = getShared()
   const trades = useLoad(() => api.journalTrades(40), { cache: "trades40" })
