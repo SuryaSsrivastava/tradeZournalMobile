@@ -235,7 +235,7 @@ export const api = {
   copyDelete: (id: number) => request<{ sync: { ok: boolean; problems: string[] } }>(`/admin/copy/${id}`, { method: "DELETE" }),
   copyHalt: (on: boolean) => request<{ ok: boolean; error?: string }>("/admin/copy/halt", { method: "POST", body: JSON.stringify({ on }) }),
   copyCloseCopies: (id: number) => request<{ ok: boolean; closed?: number; error?: string }>(`/admin/copy/${id}/close-copies`, { method: "POST" }),
-  copyEvents: () => request<CopyEvent[]>("/admin/copy/events?limit=100"),
+  copyEvents: (linkId?: number) => request<CopyEvent[]>(`/admin/copy/events?limit=100${linkId ? `&link_id=${linkId}` : ""}`),
   forwardTests: () => request<Forward[]>("/forward"),
   setForwardStatus: (id: number, status: "active" | "stopped") => request<Forward>(`/forward/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
   deleteForward: (id: number) => request<void>(`/forward/${id}`, { method: "DELETE" }),

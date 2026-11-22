@@ -8,6 +8,7 @@ import { api, type Market } from "../../src/api"
 import { useAuth } from "../../src/auth"
 import { autoSyncAccounts } from "../../src/autosync"
 import { Curve } from "../../src/charts"
+import { CopyCard } from "../../src/copycard"
 import { CountUp, Press, Pulse, Rise, Stat } from "../../src/fx"
 import { clock, dayLabel, money, until } from "../../src/format"
 import { useLoad } from "../../src/hooks"
@@ -133,6 +134,8 @@ export default function Home() {
       </Card>
 
       <LiveTrades accounts={chosenAccounts(list, mode, filter)} />
+
+      {user?.is_admin ? <CopyCard /> : null}
 
       <Rise delay={120}>
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
