@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
+import { useLocalSearchParams } from "expo-router"
 import { Alert, Text, View } from "react-native"
 import { api, type BrokerInfo, type Holding, type Portfolio } from "../../src/api"
 import { BrokerLogin, ConnectBroker, loginUrl } from "../../src/broker"
@@ -21,6 +22,8 @@ const big = { fontSize: 19, fontWeight: "800" } as const
 export default function Invest() {
   usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const [tab, setTab] = useState<Tab>("holdings")
+  const go = useLocalSearchParams<{ tab?: string; at?: string }>()
+  useEffect(() => { if (go.tab === "watchlist" || go.tab === "orders" || go.tab === "holdings") setTab(go.tab) }, [go.tab, go.at])  // the Screener's Watchlist button
   const [link, setLink] = useState<number | undefined>(undefined)
   const fresh = useRef(false)
   const links = useLoad(() => api.investLinks())

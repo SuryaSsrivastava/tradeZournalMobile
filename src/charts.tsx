@@ -128,6 +128,23 @@ export function PnlCalendar({ byDay, onPick }: { byDay: Map<string, number>; onP
     : unit === "month" ? month.toLocaleDateString([], { month: "long", year: "numeric" })
     : `${monday.toLocaleDateString([], { day: "numeric", month: "short" })} – ${new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })}`
   const pick = (d: Date, v: number | undefined) => { setPicked(key(d)); onPick?.(d, v ?? null) }
+  // the trading days of the period on show: how many were green, and the best and the worst of them
+  const period = useMemo(() => {
+    const weekEnd = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7)
+    let days = 0, green = 0
+    let best: { d: Date; v: number } | null = null, worst: { d: Date; v: number } | null = null
+    for (const [k, v] of byDay) {
+      const [y, mo, da] = k.split("-").map(Number)
+      const d = new Date(y, mo, da)
+      const inside = unit === "year" ? y === year : unit === "month" ? y === month.getFullYear() && mo === month.getMonth() : d >= monday && d < weekEnd
+      if (!inside) continue
+      days++
+      if (v > 0) green++
+      if (!best || v > best.v) best = { d, v }
+      if (!worst || v < worst.v) worst = { d, v }
+    }
+    return { days, green, best: best && best.v > 0 ? best : null, worst: worst && worst.v < 0 ? worst : null }
+  }, [byDay, unit, year, month, monday])
 
   return (
     <View>
@@ -242,6 +259,23 @@ export function PnlCalendar({ byDay, onPick }: { byDay: Map<string, number>; onP
           </View>
         </>
       )}
+
+      {period.days > 0 ? (
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+          <View style={{ flex: 1, backgroundColor: `${colors.border}44`, borderRadius: radius.md, padding: 10 }}>
+            <Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.1, textTransform: "uppercase" }}>Green days</Text>
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: "800", marginTop: 2 }}><Text style={{ color: colors.green }}>{period.green}</Text> of {period.days}</Text>
+            <Text style={{ color: colors.muted, fontSize: 10.5, fontWeight: "600" }}>{Math.round((period.green / period.days) * 100)}% of trading days</Text>
+          </View>
+          {([["Best day", period.best, colors.green], ["Worst day", period.worst, colors.red]] as const).map(([label, x, c]) => (
+            <Pressable key={label} disabled={!x} onPress={() => x && pick(x.d, x.v)} style={{ flex: 1, backgroundColor: `${colors.border}44`, borderRadius: radius.md, padding: 10 }}>
+              <Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.1, textTransform: "uppercase" }}>{label}</Text>
+              <Text style={{ color: x ? c : colors.muted, fontSize: 15, fontWeight: "800", marginTop: 2 }}>{x ? money(x.v, "USD", true) : "-"}</Text>
+              <Text style={{ color: colors.muted, fontSize: 10.5, fontWeight: "600" }}>{x ? x.d.toLocaleDateString([], { day: "numeric", month: "short" }) : "none"}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   )
 }

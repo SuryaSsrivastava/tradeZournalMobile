@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, LayoutAnimation, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
+import { useAuth } from "../../src/auth"
 import { api, ApiError, type LlmModel, type Market, type ScreenResult, type ScreenRow, type ScreenSpec } from "../../src/api"
 import { Press } from "../../src/fx"
 import { quote } from "../../src/format"
@@ -29,19 +30,29 @@ const IDEAS = ["idea1", "idea2", "idea3", "idea4"]  // what to try first
 const FOLLOW = ["f1", "f2", "f3", "f4"]  // what to try next, once there is an answer
 type Rule = { field: string; label: string; op: "gt" | "lt"; value: number }
 type Turn = { role: "user" | "assistant"; text: string; spec?: ScreenSpec }
+// what the screener holds for this run of the app: the screen is drawn again when the theme changes, and the conversation must survive that
+const kept: Record<string, unknown> = {}
+let keptFor: number | undefined
+function useKept<T>(key: string, init: T) {
+  const [v, set] = useState<T>(() => (key in kept ? (kept[key] as T) : init))
+  const setKept = useCallback((x: T | ((p: T) => T)) => set((p) => { const n = typeof x === "function" ? (x as (p: T) => T)(p) : x; kept[key] = n; return n }), [key])
+  return [v, setKept] as const
+}
 const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`)
 
 export default function Markets() {
   const router = useRouter()
   const t = useT()
-  const [market, setMarket] = useState<Market>("nse")
+  const { user } = useAuth()
+  if (keptFor !== user?.id) { for (const k of Object.keys(kept)) delete kept[k]; keptFor = user?.id }  // another member never sees the last one's conversation
+  const [market, setMarket] = useKept<Market>("market", "nse")
   const [sort, setSort] = useState("top")
   const [text, setText] = useState("")
   const [search, setSearch] = useState("")
   const [size, setSize] = useState(40)
   // the manual filters: rules on a number (P/E under 20) and sectors, which need no AI
-  const [rules, setRules] = useState<Rule[]>([])
-  const [sectorSel, setSectorSel] = useState<string[]>([])
+  const [rules, setRules] = useKept<Rule[]>("rules", [])
+  const [sectorSel, setSectorSel] = useKept<string[]>("sectors", [])
   const [filtering, setFiltering] = useState(false)
   const manual = useMemo(() => [...rules.map((x) => ({ field: x.field, op: x.op, value: x.value })), ...(sectorSel.length ? [{ field: "sector", op: "in", value: sectorSel.map((x) => x.toLowerCase()) }] : [])], [rules, sectorSel])
   const manualKey = JSON.stringify(manual)
@@ -52,16 +63,16 @@ export default function Markets() {
   const by = SORTS.find((s) => s[0] === sort)![2]
   const sortSpec = sort === "top" && (market === "crypto" || market === "forex") ? null : by
   // the chat: a plain-English request becomes a screen, and its answer replaces the list below until cleared
-  const [turns, setTurns] = useState<Turn[]>([])
-  const [ask, setAsk] = useState("")
+  const [turns, setTurns] = useKept<Turn[]>("turns", [])
+  const [ask, setAsk] = useKept("ask", "")
   const [thinking, setThinking] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
-  const [spent, setSpent] = useState<string | null>(null)  // the server said the AI allowance is used up: the message it gave
-  const [answer, setAnswer] = useState<ScreenResult | null>(null)
-  const [small, setSmall] = useState(false)  // the conversation is folded to one line
+  const [spent, setSpent] = useKept<string | null>("spent", null)  // the server said the AI allowance is used up: the message it gave
+  const [answer, setAnswer] = useKept<ScreenResult | null>("answer", null)
+  const [small, setSmall] = useKept("small", false)  // the conversation is folded to one line
   const chatScroll = useRef<{ scrollToEnd: (o?: { animated?: boolean }) => void } | null>(null)
   const fold = (to: boolean) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSmall(to) }
-  const [model, setModel] = useState<string | null>(null)  // null: the server's own choice
+  const [model, setModel] = useKept<string | null>("model", null)  // null: the server's own choice
   const [picking, setPicking] = useState(false)
   const { lang, setLang } = useLang()  // the language of the app, spoken to the mic and asked for in the answers
   const [pickingLang, setPickingLang] = useState(false)
@@ -73,7 +84,6 @@ export default function Markets() {
   const saved = useMemo(() => new Map((watch.data?.stocks ?? []).map((w) => [`${w.market}:${w.symbol}`, w.id])), [watch.data])
   const canWatch = market === "nse" || market === "us"  // the server keeps stocks of these two markets only
   const [adding, setAdding] = useState(false)
-  const [onlySaved, setOnlySaved] = useState(false)  // show only the stocks on the watchlist
   const swipeHint = useHint("swipe.watch")  // shown to a new member until they have swiped, or dismissed it
   const toggleSaved = async (r: ScreenRow) => {
     const k = `${r.market}:${r.symbol}`
@@ -145,7 +155,12 @@ export default function Markets() {
     if (stop) stopListening.current = stop
     else setHearing(false)
   }
-  useEffect(() => { setAnswer(null); setTurns([]); setChatError(null); setRules([]); setSectorSel([]); setOnlySaved(false) }, [market])
+  const lastMarket = useRef(market)
+  useEffect(() => {
+    if (lastMarket.current === market) return  // drawn again with the same market (a theme change): nothing to start over
+    lastMarket.current = market
+    setAnswer(null); setTurns([]); setChatError(null); setRules([]); setSectorSel([])
+  }, [market])
   const send = async (text: string) => {
     const message = text.trim()
     if (!message || thinking) return
@@ -165,17 +180,14 @@ export default function Markets() {
 
   const res = useLoad(() => api.screen(market, { filters: manual, sort: sortSpec, search }, 0, size), { deps: [market, sort, search, size, manualKey] })
   const cur = MARKETS.find((m) => m[0] === market)![2]
-  // the saved stocks of this market, in the shape of a screener row (the search box still narrows them)
-  const savedRows: ScreenRow[] = (watch.data?.stocks ?? []).filter((w) => w.market === market && (!search || `${w.symbol} ${w.name}`.toLowerCase().includes(search.toLowerCase())))
-    .map((w) => ({ symbol: w.symbol, name: w.name, sector: w.sector, market: w.market, price: w.price, chg_1d: w.chg_1d, pe: w.pe, market_cap: w.market_cap }))
-  const rows = onlySaved ? savedRows : answer ? answer.rows : res.data?.rows ?? []
-  const waiting = onlySaved ? !watch.loaded : !answer && !res.loaded
+  const rows = answer ? answer.rows : res.data?.rows ?? []
+  const waiting = !answer && !res.loaded
   const showSorts = market !== "forex" && !answer
 
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-    <Screen refreshing={res.refreshing} onRefresh={res.refresh}>
-      <Title brand sub={t("sub")} right={<Press onPress={() => router.push("/calendar")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 }}><Ionicons name="calendar-outline" size={16} color={colors.text} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{t("calendar")}</Text></View></Press>}>{t("tab_screener")}</Title>
+    <Screen avoid={false} refreshing={res.refreshing} onRefresh={res.refresh}>
+      <Title brand sub={t("sub")} right={<Press onPress={() => router.push({ pathname: "/invest", params: { tab: "watchlist", at: String(Date.now()) } } as never)}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 }}><Ionicons name="bookmark-outline" size={16} color={colors.text} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{t("watchlist")}</Text></View></Press>}>{t("tab_screener")}</Title>
       <Row style={{ flexWrap: "wrap" }}>{MARKETS.map(([k, l]) => <Pill key={k} active={market === k} onPress={() => setMarket(k)} color={colors.blue}>{t(l)}</Pill>)}</Row>
       <Row style={{ gap: 8, marginVertical: 10 }}>
         <Row style={{ flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12 }}>
@@ -242,17 +254,16 @@ export default function Markets() {
       {chatError ? <ErrorNote>{chatError}</ErrorNote> : null}
       {showSorts || canWatch ? (
         <Row style={{ flexWrap: "wrap", marginBottom: 6 }}>
-          {showSorts ? SORTS.map(([k, l]) => <Pill key={k} active={!onlySaved && sort === k} onPress={() => { setOnlySaved(false); setSort(k) }}>{t(l)}</Pill>) : null}
-          {canWatch ? <Pill active={onlySaved} onPress={() => setOnlySaved((v) => !v)} color={colors.amber}>{t("saved")}</Pill> : null}
+          {showSorts ? SORTS.map(([k, l]) => <Pill key={k} active={sort === k} onPress={() => setSort(k)}>{t(l)}</Pill>) : null}
         </Row>
       ) : null}
 
       {res.error ? <ErrorNote>{res.error}</ErrorNote> : null}
-      {waiting ? <Loading /> : rows.length === 0 ? <Empty title={onlySaved ? t("saved_empty") : t("no_match")} text={onlySaved ? "" : t("try_other")} /> : (
+      {waiting ? <Loading /> : rows.length === 0 ? <Empty title={t("no_match")} text={t("try_other")} /> : (
         <>
-          {canWatch && !onlySaved && (answer || manual.length > 0) ? <View style={{ marginBottom: 10 }}><Button tone="ghost" busy={adding} onPress={() => void addAll()}>{t("wl_add_all")} · {(answer ? answer.matched ?? answer.total : res.data?.matched ?? rows.length) > 200 ? "200" : String(answer ? answer.matched ?? answer.total : res.data?.matched ?? rows.length)}</Button></View> : null}
+          {canWatch && (answer || manual.length > 0) ? <View style={{ marginBottom: 10 }}><Button tone="ghost" busy={adding} onPress={() => void addAll()}>{t("wl_add_all")} · {(answer ? answer.matched ?? answer.total : res.data?.matched ?? rows.length) > 200 ? "200" : String(answer ? answer.matched ?? answer.total : res.data?.matched ?? rows.length)}</Button></View> : null}
           {rows.map((r, i) => <AssetRow key={`${r.market}:${r.symbol}`} r={r} cur={cur} peek={canWatch && swipeHint.show && i === 0} onPeeked={swipeHint.done} saved={canWatch ? saved.has(`${r.market}:${r.symbol}`) : undefined} onSave={canWatch ? () => void toggleSaved(r) : undefined} onPress={() => router.push(`/asset/${r.market}/${encodeURIComponent(r.symbol)}`)} />)}
-          {onlySaved ? <Muted style={{ textAlign: "center", marginTop: 8 }}>{rows.length === 1 ? t("count1") : t("count", { n: rows.length })}</Muted> : answer ? <Muted style={{ textAlign: "center", marginTop: 8 }}>{answer.matched ?? answer.total} match{(answer.matched ?? answer.total) === 1 ? "" : "es"}{answer.total > rows.length ? ` · showing ${rows.length}` : ""}</Muted> : (res.data?.matched ?? res.data?.total ?? 0) > rows.length ? <View style={{ marginTop: 6 }}><Button tone="ghost" onPress={() => setSize((n) => n + 40)}>{t("show_more")}</Button></View> : <Muted style={{ textAlign: "center", marginTop: 8 }}>{(res.data?.matched ?? res.data?.total ?? 0) === 1 ? t("count1") : t("count", { n: res.data?.matched ?? res.data?.total ?? 0 })}</Muted>}
+          {answer ? <Muted style={{ textAlign: "center", marginTop: 8 }}>{answer.matched ?? answer.total} match{(answer.matched ?? answer.total) === 1 ? "" : "es"}{answer.total > rows.length ? ` · showing ${rows.length}` : ""}</Muted> : (res.data?.matched ?? res.data?.total ?? 0) > rows.length ? <View style={{ marginTop: 6 }}><Button tone="ghost" onPress={() => setSize((n) => n + 40)}>{t("show_more")}</Button></View> : <Muted style={{ textAlign: "center", marginTop: 8 }}>{(res.data?.matched ?? res.data?.total ?? 0) === 1 ? t("count1") : t("count", { n: res.data?.matched ?? res.data?.total ?? 0 })}</Muted>}
         </>
       )}
     </Screen>

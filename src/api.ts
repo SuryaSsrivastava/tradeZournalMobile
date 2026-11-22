@@ -114,12 +114,25 @@ export async function forgetSession() {
   try { await SecureStore.deleteItemAsync(TOKEN_KEY) } catch { /* nothing stored */ }
 }
 
+const INSTALL_KEY = "tz.install"
+let install: string | null = null
+/** A random id made the first time the app runs and kept in secure storage. It is sent with every request, so the server can tell this phone from anyone else who sends the same headers (only a hash is stored there). */
+async function installId(): Promise<string> {
+  if (install) return install
+  try { install = await SecureStore.getItemAsync(INSTALL_KEY) } catch { install = null }
+  if (!install || install.length < 32) {
+    install = b64url(btoa(String.fromCharCode(...Crypto.getRandomBytes(32))))  // 43 characters
+    try { await SecureStore.setItemAsync(INSTALL_KEY, install) } catch { /* kept for this run only */ }
+  }
+  return install
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message) }
 }
 
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json", "x-tz-Client": "mobile", ...(init.headers as Record<string, string> | undefined) }
+  const headers: Record<string, string> = { Accept: "application/json", "x-tz-Client": "mobile", "x-tz-Install": await installId(), ...(init.headers as Record<string, string> | undefined) }
   if (init.body) headers["Content-Type"] = "application/json"
   if (auth && token) headers.Authorization = `Bearer ${token}`
   let res: Response

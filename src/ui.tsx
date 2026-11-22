@@ -1,11 +1,11 @@
-import { ActivityIndicator, Animated, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native"
+import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRef, type MutableRefObject, type ReactNode } from "react"
 import { Ambient, Glass, Rise, Skeleton } from "./fx"
 import { colors, currentScheme, radius, themed } from "./theme"
 
 /** `scrollTo`: filled in by the screen with a function that scrolls the page so something now at `windowY` (from measureInWindow) ends up near the top. */
-export function Screen({ children, refreshing, onRefresh, scroll = true, padTop = true, scrollTo }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; padTop?: boolean; scrollTo?: MutableRefObject<((windowY: number) => void) | null> }) {
+export function Screen({ children, refreshing, onRefresh, scroll = true, padTop = true, scrollTo, avoid = true }: { children: ReactNode; avoid?: boolean; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; padTop?: boolean; scrollTo?: MutableRefObject<((windowY: number) => void) | null> }) {
   const insets = useSafeAreaInsets()
   const y = useRef(new Animated.Value(0)).current
   const list = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null)
@@ -14,14 +14,14 @@ export function Screen({ children, refreshing, onRefresh, scroll = true, padTop 
   const pad = { paddingTop: padTop ? insets.top + 8 : 0, paddingHorizontal: 16, paddingBottom: 32 }
   if (!scroll) return <View style={s.screen}><Ambient /><View style={[{ flex: 1 }, pad]}>{children}</View></View>
   return (
-    <View style={s.screen}>
+    <KeyboardAvoidingView enabled={avoid} behavior="padding" style={s.screen}>  {/* the page shrinks above the keyboard, so what is being typed stays in view; `avoid={false}` for a screen whose parent already does it */}
       <Ambient scrollY={y} />
       <Animated.ScrollView ref={(r) => { list.current = r as unknown as typeof list.current }} style={{ flex: 1 }} contentContainerStyle={pad} keyboardShouldPersistTaps="handled" scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y } } }], { useNativeDriver: true, listener: (e: unknown) => { offset.current = (e as { nativeEvent: { contentOffset: { y: number } } }).nativeEvent.contentOffset.y } })}
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.green} colors={[colors.green]} progressBackgroundColor={colors.card} /> : undefined}>
         {children}
       </Animated.ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
