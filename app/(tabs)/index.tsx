@@ -3,10 +3,10 @@ import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
 import { LinearGradient } from "expo-linear-gradient"
 import { useEffect, useRef } from "react"
-import { AppState, Text, View } from "react-native"
+import { Text, View } from "react-native"
 import { api, type Market } from "../../src/api"
 import { useAuth } from "../../src/auth"
-import { autoSyncAccounts } from "../../src/autosync"
+import { useAutoSync } from "../../src/autosync"
 import { Curve } from "../../src/charts"
 import { CopyCard } from "../../src/copycard"
 import { CountUp, Press, Pulse, Rise, Stat } from "../../src/fx"
@@ -71,23 +71,9 @@ export default function Home() {
   useEffect(() => {  // keep the home-screen widget current (only in builds that contain it)
     if (process.env.EXPO_PUBLIC_WIDGET === "1" && trades.data) { try { void (require("../../src/widget") as typeof import("../../src/widget")).refreshWidget() } catch { /* no widget in this build */ } }
   }, [trades.data])
-  useEffect(() => {  // opening the app (or coming back to it) brings the MetaTrader accounts' new trades in
-    if (list.length === 0) return
-    let alive = true
-    const timers: ReturnType<typeof setTimeout>[] = []
-    const run = () => {
-      void autoSyncAccounts(list).then((r) => {
-        if (!alive) return
-        if (r.added > 0) { void trades.refresh(); void accounts.refresh() }
-        if (r.connecting) for (const ms of [45_000, 90_000]) timers.push(setTimeout(() => { if (alive) { void trades.refresh(); void accounts.refresh() } }, ms))  // the terminal is starting
-      })
-    }
-    run()
-    const sub = AppState.addEventListener("change", (s) => { if (s === "active") run() })
-    return () => { alive = false; sub.remove(); timers.forEach(clearTimeout) }
-  }, [list.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sync = useAutoSync(list, () => { void trades.refresh(); void accounts.refresh() })  // opening Home, coming back to it or to the app brings the MetaTrader accounts' new trades in
   const { fresh, done } = useNewBadges(every)
-  const refresh = () => { void Promise.all([accounts.refresh(), trades.refresh(), notices.refresh(), next.refresh(), rules.refresh(), watch.refresh(), movers.refresh()]).then(() => showToast("Synced just now")) }
+  const refresh = () => { void Promise.all([sync(true).catch(() => null), accounts.refresh(), trades.refresh(), notices.refresh(), next.refresh(), rules.refresh(), watch.refresh(), movers.refresh()]).then(() => showToast("Synced just now")) }
   // a guard rail that gets worse is felt as well as seen: a double tap for "close to the limit", a firm warning for "limit reached"
   const worst = meters.some((m) => m.state === "breached") ? 2 : meters.some((m) => m.state === "warn") ? 1 : 0
   const worstBefore = useRef<number | null>(null)

@@ -7,6 +7,7 @@ import { AreaChart, Columns, Curve, PnlCalendar, RankBars } from "../../src/char
 import { DayTrades } from "../../src/day"
 import { CountUp, Press, Rise, Ring, Stat } from "../../src/fx"
 import { dayLabel, money } from "../../src/format"
+import { useAutoSync } from "../../src/autosync"
 import { useLoad } from "../../src/hooks"
 import { breakdown, byHour, equityLabels, rollingLabels, byMonth, dailySeries, drawdownSeries, equityPoints, equityPointsR, groupByDay, holdMinutes, inRange, journalStats, maxDrawdown, minutesText, pnlByDay, pnlOf, rBuckets, rOf, rollingWinRate, sessionOf, streaks, weekdays } from "../../src/journal"
 import { ShotBadge } from "../../src/shots"
@@ -41,6 +42,7 @@ export default function Journal() {
   const trades = useLoad(() => api.journalTrades(500), { cache: "trades500" })
   const accounts = useLoad(() => api.accounts(), { cache: "accounts" })
   const counts = useLoad(() => api.journalShotCounts(), { cache: "shotcounts" })
+  const sync = useAutoSync(accounts.data?.accounts ?? [], () => { void trades.refresh(); void accounts.refresh() })
   const { mode, filter: accts, setMode } = useScope()
   const every = trades.data ?? []
   const all = every.filter((t) => inScope(t, mode, accts))  // follows the account chosen on Home or here
@@ -62,7 +64,7 @@ export default function Journal() {
     { text: "Delete", style: "destructive", onPress: async () => { try { await api.deleteJournalTrade(t.id); showToast("Trade deleted"); await trades.refresh() } catch (e) { showToast(e instanceof Error ? e.message : "Could not delete.", false) } } },
   ])
   return (
-    <Screen scrollTo={jump} refreshing={trades.refreshing} onRefresh={() => { void Promise.all([trades.refresh(), counts.refresh()]).then(() => showToast("Journal is up to date")) }}>
+    <Screen scrollTo={jump} refreshing={trades.refreshing} onRefresh={() => { void Promise.all([sync(true).catch(() => null), trades.refresh(), counts.refresh()]).then(() => showToast("Journal is up to date")) }}>
       <Title brand sub={`${all.length} trade${all.length === 1 ? "" : "s"}`} right={<Press onPress={() => router.push("/trade/new")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 }}><Ionicons name="add" size={18} color="#04110b" /><Text style={{ color: "#04110b", fontWeight: "800", fontSize: 13 }}>Log trade</Text></View></Press>}>Journal</Title>
       <ScopeBar trades={every} accounts={accounts.data?.accounts ?? []} />
       {trades.error ? <ErrorNote>{trades.error}</ErrorNote> : null}
