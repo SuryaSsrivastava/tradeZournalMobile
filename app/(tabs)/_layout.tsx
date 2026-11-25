@@ -40,7 +40,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: t("tab_home"), tabBarIcon: icon("home-outline", "home") }} />
       <Tabs.Screen name="journal" options={{ title: t("tab_journal"), tabBarIcon: icon("book-outline", "book") }} />
       <Tabs.Screen name="markets" options={{ title: t("tab_screener"), tabBarIcon: icon("funnel-outline", "funnel") }} />
-      <Tabs.Screen name="invest" options={{ title: t("tab_portfolio"), tabBarIcon: icon("pie-chart-outline", "pie-chart") }} />
+      <Tabs.Screen name="chart" options={{ title: t("tab_chart"), tabBarIcon: icon("analytics-outline", "analytics") }} />
       <Tabs.Screen name="more" options={{ title: t("tab_more"), tabBarIcon: icon("grid-outline", "grid"), tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined }} />
     </Tabs>
   )

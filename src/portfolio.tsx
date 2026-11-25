@@ -1,17 +1,16 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useEffect, useRef, useState } from "react"
-import { useLocalSearchParams } from "expo-router"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Alert, Text, View } from "react-native"
-import { api, type BrokerInfo, type Holding, type Portfolio } from "../../src/api"
-import { BrokerLogin, ConnectBroker, loginUrl } from "../../src/broker"
-import { Bar, CountUp, Hero, Press, Rise, Ring, Sparkline, Stat } from "../../src/fx"
-import { ago, money, quote } from "../../src/format"
-import { useLoad } from "../../src/hooks"
-import { SwipeRow } from "../../src/swipe"
-import { showToast } from "../../src/toast"
-import { colors, themed } from "../../src/theme"
-import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
-import { usePrivacy } from "../../src/privacy"
+import { api, type BrokerInfo, type Holding, type Portfolio } from "./api"
+import { BrokerLogin, ConnectBroker, loginUrl } from "./broker"
+import { Bar, CountUp, Hero, Press, Rise, Ring, Sparkline, Stat } from "./fx"
+import { ago, money, quote } from "./format"
+import { useLoad } from "./hooks"
+import { SwipeRow } from "./swipe"
+import { showToast } from "./toast"
+import { colors, themed } from "./theme"
+import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "./ui"
+import { usePrivacy } from "./privacy"
 
 type Tab = "holdings" | "watchlist" | "orders"
 const inr = (n: number | null | undefined, sign = false) => money(n, "INR", sign)
@@ -19,10 +18,9 @@ const px = (n: number | null | undefined) => quote(n, "INR")  // a price on the 
 const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`)
 const big = { fontSize: 19, fontWeight: "800" } as const
 
-export default function Invest() {
+export function PortfolioView({ switcher, go }: { switcher: ReactNode; go: { tab?: string; at?: string } }) {
   usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const [tab, setTab] = useState<Tab>("holdings")
-  const go = useLocalSearchParams<{ tab?: string; at?: string }>()
   useEffect(() => { if (go.tab === "watchlist" || go.tab === "orders" || go.tab === "holdings") setTab(go.tab) }, [go.tab, go.at])  // the Screener's Watchlist button
   const [link, setLink] = useState<number | undefined>(undefined)
   const fresh = useRef(false)
@@ -67,6 +65,7 @@ export default function Invest() {
           </View>
         </Press>
       }>Portfolio</Title>
+      {switcher}
       {connecting ? <View style={{ marginBottom: 12 }}>{brokers ? <ConnectBroker brokers={brokers} onLogin={setLogin} onDone={() => { void links.refresh() }} /> : <Loading />}</View> : null}
       <Rise>
         <Hero tint={colors.blue}>

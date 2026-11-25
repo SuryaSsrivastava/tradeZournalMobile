@@ -29,7 +29,7 @@ function AccountLive({ account }: { account: Account }) {
   const [note, setNote] = useState<string | null>(null)
   const v = live.data
   const open = (v?.positions ?? []).filter((p) => !gone.includes(p.id))
-  const canClose = !!user?.is_admin && account.kind === "metaapi" && !account.is_prop  // the server's own rule for trading live
+  const canClose = !!user?.is_admin && account.kind === "metaapi"  // the server's own rule for trading live
   const history = useProfitHistory(open, v?.at)
   const running = v?.state === "live" && open.length > 0
   useEffect(() => { if (running) void startLiveNotification(account.id, canClose) }, [running, account.id, canClose])  // a trade is open: keep it in the notification bar too (if the member turned that on)

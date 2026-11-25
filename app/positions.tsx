@@ -24,7 +24,7 @@ export default function Positions() {
   const v = live.data
   const { user } = useAuth()
   const acct = usable.find((a) => a.id === id)
-  const canClose = !!user?.is_admin && acct?.kind === "metaapi" && !acct.is_prop  // the server's own rule for trading live
+  const canClose = !!user?.is_admin && acct?.kind === "metaapi"  // the server's own rule for trading live
   const [closing, setClosing] = useState<string | null>(null)
   const [gone, setGone] = useState<string[]>([])  // closed a moment ago: hidden until the next look agrees
   const [note, setNote] = useState<string | null>(null)

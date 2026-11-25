@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, LayoutAnimation, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native"
 import { useAuth } from "../../src/auth"
 import { api, ApiError, type LlmModel, type Market, type ScreenResult, type ScreenRow, type ScreenSpec } from "../../src/api"
@@ -17,6 +17,7 @@ import { colors, radius } from "../../src/theme"
 import { SwipeRow } from "../../src/swipe"
 import { useHint } from "../../src/swipehint"
 import { showToast } from "../../src/toast"
+import { PortfolioView } from "../../src/portfolio"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 
 const MARKETS: [Market, string, string][] = [["nse", "m_nse", "INR"], ["us", "m_us", "USD"], ["crypto", "m_crypto", "USD"], ["forex", "m_forex", ""]]  // the middle one is the key of its translated name
@@ -40,11 +41,26 @@ function useKept<T>(key: string, init: T) {
 }
 const pct = (n: number | null | undefined) => (n == null ? "-" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`)
 
+/** The Screener and the Portfolio share this tab: a switch at the top of each. The Screener's Watchlist button opens the portfolio's watchlist. */
 export default function Markets() {
-  const router = useRouter()
   const t = useT()
   const { user } = useAuth()
   if (keptFor !== user?.id) { for (const k of Object.keys(kept)) delete kept[k]; keptFor = user?.id }  // another member never sees the last one's conversation
+  const [seg, setSeg] = useKept<"screener" | "portfolio">("seg", "screener")
+  const [go, setGo] = useState<{ tab?: string; at?: string }>({})
+  const switcher = (
+    <Row style={{ marginBottom: 10 }}>
+      <Pill active={seg === "screener"} onPress={() => setSeg("screener")} color={colors.blue}>{t("tab_screener")}</Pill>
+      <Pill active={seg === "portfolio"} onPress={() => setSeg("portfolio")} color={colors.blue}>{t("tab_portfolio")}</Pill>
+    </Row>
+  )
+  return seg === "portfolio" ? <PortfolioView switcher={switcher} go={go} /> : <Screener switcher={switcher} openWatchlist={() => { setGo({ tab: "watchlist", at: String(Date.now()) }); setSeg("portfolio") }} />
+}
+
+function Screener({ switcher, openWatchlist }: { switcher: ReactNode; openWatchlist: () => void }) {
+  const router = useRouter()
+  const t = useT()
+  const { user } = useAuth()
   const [market, setMarket] = useKept<Market>("market", "nse")
   const [sort, setSort] = useState("top")
   const [text, setText] = useState("")
@@ -187,7 +203,8 @@ export default function Markets() {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
     <Screen avoid={false} refreshing={res.refreshing} onRefresh={res.refresh}>
-      <Title brand sub={t("sub")} right={<Press onPress={() => router.push({ pathname: "/invest", params: { tab: "watchlist", at: String(Date.now()) } } as never)}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 }}><Ionicons name="bookmark-outline" size={16} color={colors.text} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{t("watchlist")}</Text></View></Press>}>{t("tab_screener")}</Title>
+      <Title brand sub={t("sub")} right={<Press onPress={openWatchlist}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 }}><Ionicons name="bookmark-outline" size={16} color={colors.text} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{t("watchlist")}</Text></View></Press>}>{t("tab_screener")}</Title>
+      {switcher}
       <Row style={{ flexWrap: "wrap" }}>{MARKETS.map(([k, l]) => <Pill key={k} active={market === k} onPress={() => setMarket(k)} color={colors.blue}>{t(l)}</Pill>)}</Row>
       <Row style={{ gap: 8, marginVertical: 10 }}>
         <Row style={{ flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12 }}>

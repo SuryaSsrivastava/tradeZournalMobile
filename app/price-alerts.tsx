@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useMemo, useState } from "react"
+import { useRouter } from "expo-router"
 import { Alert, Pressable, Text, View } from "react-native"
 import { api, type MarketQuote } from "../src/api"
 import { CheckMark, success } from "../src/delight"
@@ -12,6 +13,7 @@ import { Button, Card, Empty, ErrorNote, Field, Label, Loading, Muted, Pill, Row
 const guess = (q: MarketQuote | undefined) => (q?.price != null ? String(q.price) : "")
 
 export default function PriceAlerts() {
+  const router = useRouter()
   const quotes = useLoad(() => api.quotes(), { every: 20_000 })
   const alerts = useLoad(() => api.priceAlerts(), { every: 30_000 })
   const [find, setFind] = useState("")
@@ -84,6 +86,7 @@ export default function PriceAlerts() {
           ) : null}
           {error ? <ErrorNote>{error}</ErrorNote> : null}
           {added ? <Row style={{ gap: 8, marginBottom: 10 }}><CheckMark size={20} /><Text style={{ color: colors.green, fontSize: 13, fontWeight: "700" }}>Alert added. We will tell you when it hits.</Text></Row> : null}
+          {symbol ? <View style={{ marginBottom: 10 }}><Button tone="ghost" onPress={() => router.push({ pathname: "/chart", params: { symbol } } as never)}>Open {symbol} chart</Button></View> : null}
           <Button onPress={add} busy={busy} disabled={!symbol || full}>{full ? "20 alerts waiting: remove one" : "Add alert"}</Button>
         </Card>
       </Rise>

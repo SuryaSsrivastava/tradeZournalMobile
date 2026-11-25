@@ -74,6 +74,7 @@ export type Meter = { key: string; label: string; kind: "limit" | "goal"; limit:
 export type DisciplineScope = { scope: string; account_id: number | null; meters: Meter[] }
 export type Prefs = { push: boolean; promos?: boolean; digest?: boolean; daily_recap?: boolean; monthly_report?: boolean; [k: string]: unknown }
 export type PriceAlert = { id: number; symbol: string; name: string; direction: "above" | "below"; price: number; created_at: string; triggered_at: string | null; triggered_price: number | null }
+export type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number; open_bar?: boolean }
 export type MarketQuote = { symbol: string; name: string; category: string; price: number | null; change_pct: number | null }
 
 // ---- the connection -----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -303,6 +304,7 @@ export const api = {
   priceAlerts: () => request<{ items: PriceAlert[]; max_open: number }>("/notifications/price-alerts"),
   addPriceAlert: (b: { symbol: string; direction: "above" | "below"; price: number }) => request<PriceAlert>("/notifications/price-alerts", { method: "POST", body: JSON.stringify(b) }),
   removePriceAlert: (id: number) => request<void>(`/notifications/price-alerts/${id}`, { method: "DELETE" }),
+  candles: (symbol: string, timeframe: string, start: Date, end: Date, limit = 300) => request<Candle[]>(`/market/candles?${new URLSearchParams({ provider: "biquote", symbol, timeframe, start: start.toISOString(), end: end.toISOString(), limit: String(limit) })}`),
   quotes: () => request<{ symbols: MarketQuote[] }>("/market/symbols?provider=forex"),
   newsAlerts: () => request<NewsAlerts>("/notifications/news-alerts"),
   saveNewsAlerts: (b: NewsAlerts) => request<NewsAlerts>("/notifications/news-alerts", { method: "PUT", body: JSON.stringify(b) }),
