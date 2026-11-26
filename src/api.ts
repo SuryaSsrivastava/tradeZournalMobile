@@ -22,7 +22,7 @@ export type Account = {
   } | null
   starting_balance?: number; rules?: PropRules; last_sync_at?: string | null; last_error?: string; trades_synced?: number; currency?: string | null
 }
-export type LivePosition = { id: string; symbol: string; side: "Long" | "Short"; volume: number | null; open_price: number | null; price: number | null; stop: number | null; target: number | null; profit: number; swap: number | null; opened_at: string | null }
+export type LivePosition = { id: string; symbol: string; side: "Long" | "Short"; volume: number | null; open_price: number | null; price: number | null; stop: number | null; target: number | null; profit: number; swap: number | null; opened_at: string | null; comment?: string }
 export type LiveView = { state: "starting" | "live" | "error" | "unsupported" | "ended"; message?: string; positions?: LivePosition[]; balance?: number | null; equity?: number | null; currency?: string; floating?: number; at?: string }
 export type ForwardStats = { n: number; wins: number; winRate: number; expectancy: number; profitFactor: number | null; totalR: number; maxDrawdownR: number }
 export type Forward = { id: number; name: string; symbol: string; timeframe: string; status: "active" | "stopped"; started_at: string; evaluated_at: string | null; stats: ForwardStats | null; max_trades: number | null }

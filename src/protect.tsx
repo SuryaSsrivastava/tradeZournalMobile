@@ -5,6 +5,9 @@ import { api, type LivePosition } from "./api"
 import { colors } from "./theme"
 import { Muted, Row } from "./ui"
 
+/** A trade a copy link opened (its comment is tz<link>:<master ticket>): its stop comes from the master's, so it is protected on the master. */
+export const isCopy = (p: LivePosition) => /^tz\d+:\d+/.test(p.comment || "")
+
 const inProfit = (p: LivePosition) => p.open_price != null && p.price != null && (p.side === "Long" ? p.price > p.open_price : p.price < p.open_price)
 
 /**
@@ -12,6 +15,11 @@ const inProfit = (p: LivePosition) => p.open_price != null && p.price != null &&
  * moments. For admins, like every order the app sends (the server refuses anyone else).
  */
 export function ProtectStop({ accountId, p, onMoved }: { accountId: number; p: LivePosition; onMoved?: () => void }) {
+  if (isCopy(p)) return <Muted style={{ marginTop: 8 }}>A copy of a master trade: protect it on the master account and this stop follows.</Muted>
+  return <Protect accountId={accountId} p={p} onMoved={onMoved} />
+}
+
+function Protect({ accountId, p, onMoved }: { accountId: number; p: LivePosition; onMoved?: () => void }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
