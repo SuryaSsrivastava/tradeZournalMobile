@@ -6,6 +6,7 @@ import { CloseX, LiveLine, RangeBar, useProfitHistory } from "../src/livechart"
 import { startLiveNotification } from "../src/liveservice"
 import { CountUp } from "../src/fx"
 import { ProtectStop } from "../src/protect"
+import { AutoBreakeven } from "../src/autoprotect"
 import { ago, money, price } from "../src/format"
 import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
@@ -57,6 +58,8 @@ export default function Positions() {
       {usable.length > 1 ? (
         <Row style={{ flexWrap: "wrap" }}>{usable.map((a) => <Pill key={a.id} active={a.id === picked} onPress={() => setPicked(a.id)}>{a.name}</Pill>)}</Row>
       ) : null}
+
+      {canProtect && acct ? <AutoBreakeven key={acct.id + String(acct.auto_protect?.on)} account={acct} onChanged={() => void accounts.reload()} /> : null}
 
       {!accounts.loaded ? <Loading /> : usable.length === 0 ? <Empty title="No MetaTrader account" text="Connect one on the website to watch your open positions here." /> : (
         <>

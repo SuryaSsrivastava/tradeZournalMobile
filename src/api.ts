@@ -11,7 +11,10 @@ import { markOffline } from "./net"
 export type User = { id: number; email: string; name: string; timezone: string; plan: string; is_admin: boolean; plan_expires_at?: string | null; has_password?: boolean; has_google?: boolean; created_at?: string | null }
 export type PlanUsage = { credits?: Record<string, number>; plan: string; lapsed: boolean; limits: Record<string, number | null>; used: Record<string, number>; resets_on: string | null; ends_on: string | null }
 export type Notice = { id: number; kind: string; title: string; body: string; link: string; read: boolean; created_at: string }
+/** The automatic break-even on a MetaTrader account: once a trade is `value` R (or money) in profit its stop moves to the entry, plus `offset` in price. */
+export type AutoProtect = { on: boolean; unit: "r" | "money"; value: number; offset: number }
 export type Account = {
+  auto_protect?: AutoProtect | null
   goals?: Partial<Goals>
   id: number; name: string; kind: string; broker?: string | null; server?: string | null; is_prop: boolean; is_demo?: boolean; status: "active" | "connecting" | "error" | "paused"
   hint: string; prop: {
@@ -245,6 +248,7 @@ export const api = {
   /** Admin only: move the stop of an open trade to break-even, or lock in a share of its profit. It only ever tightens the stop; followers of a copy link copy it. */
   moveStop: (accountId: number, positionId: string, b: { mode: "breakeven" | "lock_pct" | "price"; pct?: number; offset?: number; price?: number }) =>
     request<{ ok: boolean; stop: number; previous: number | null; symbol: string; followers: number }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/stop`, { method: "POST", body: JSON.stringify(b) }),
+  setAutoProtect: (accountId: number, b: AutoProtect) => request<{ auto_protect: AutoProtect }>(`/accounts/${accountId}/auto-protect`, { method: "PUT", body: JSON.stringify(b) }),
   closePosition: (accountId: number, positionId: string) => request<{ closed: boolean }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/close`, { method: "POST" }),
   /** Read an account's new trades from MetaTrader now. `auto` is the app doing it by itself on opening the account: the same sync, without the "your trades are in" notice. */
   syncAccount: (id: number, auto = false) => request<{ added: number; error: string | null; connecting?: boolean; skipped?: boolean }>(`/accounts/${id}/sync?auto=${auto}`, { method: "POST" }),
