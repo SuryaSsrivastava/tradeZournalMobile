@@ -2,7 +2,7 @@ import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import * as SecureStore from "expo-secure-store"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
-import { Modal, Pressable, ScrollView, Text, View } from "react-native"
+import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import type { Account, JournalTrade } from "./api"
 import { money } from "./format"
@@ -17,52 +17,60 @@ const isReplay = (t: JournalTrade) => t.source === "replay"
 
 export const inMode = (t: JournalTrade, m: Mode) => (m === "backtest" ? isReplay(t) : !isReplay(t) && (m === "manual" ? !!t.manual : !t.manual))
 /** `filter` holds account ids as text, plus "none" for trades logged by hand with no account. Empty means every account. */
-export const inScope = (t: JournalTrade, m: Mode, filter: string[]) => inMode(t, m) && (m === "backtest" || filter.length === 0 || filter.includes(t.account_id == null ? "none" : String(t.account_id)))
+export const inScope = (t: JournalTrade, m: Mode, filter: string[], demo = false) => inMode(t, m) && (m === "backtest" || (demoShown(t, filter, demo) && (filter.length === 0 || filter.includes(t.account_id == null ? "none" : String(t.account_id)))))
+/** A trade on a demo account is shown only when demo accounts are included, or when its account was picked by name (as on the website). */
+const demoShown = (t: JournalTrade, filter: string[], demo: boolean) => !t.demo || demo || (t.account_id != null && filter.includes(String(t.account_id)))
 
-type Scope = { mode: Mode; filter: string[]; setMode: (m: Mode) => void; setFilter: (f: string[]) => void; select: (a: Account) => void; clear: () => void }
+type Scope = { mode: Mode; filter: string[]; demo: boolean; setDemo: (on: boolean) => void; setMode: (m: Mode) => void; setFilter: (f: string[]) => void; select: (a: Account) => void; clear: () => void }
 const Ctx = createContext<Scope | null>(null)
 export const useScope = () => { const c = useContext(Ctx); if (!c) throw new Error("useScope outside ScopeProvider"); return c }
 
 export function ScopeProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<{ mode: Mode; filter: string[] }>({ mode: "real", filter: [] })
+  const [state, setState] = useState<{ mode: Mode; filter: string[]; demo: boolean }>({ mode: "real", filter: [], demo: false })
   useEffect(() => {
     SecureStore.getItemAsync(KEY).then((v) => {
       const s = v ? JSON.parse(v) : null
-      if (s && (s.mode === "real" || s.mode === "manual" || s.mode === "backtest") && Array.isArray(s.filter)) setState({ mode: s.mode, filter: s.filter.map(String) })
+      if (s && (s.mode === "real" || s.mode === "manual" || s.mode === "backtest") && Array.isArray(s.filter)) setState({ mode: s.mode, filter: s.filter.map(String), demo: s.demo === true })
     }).catch(() => {})
   }, [])
-  const put = useCallback((next: { mode: Mode; filter: string[] }) => { setState(next); SecureStore.setItemAsync(KEY, JSON.stringify(next)).catch(() => {}) }, [])
+  const put = useCallback((next: { mode: Mode; filter: string[]; demo: boolean }) => { setState(next); SecureStore.setItemAsync(KEY, JSON.stringify(next)).catch(() => {}) }, [])
   const value = useMemo<Scope>(() => ({
     ...state,
-    setMode: (mode) => put({ mode, filter: [] }),  // an account of one mode means nothing in another
-    setFilter: (filter) => put({ mode: state.mode, filter }),
-    select: (a) => put({ mode: a.kind === "manual" ? "manual" : "real", filter: [String(a.id)] }),
-    clear: () => put({ mode: state.mode, filter: [] }),
+    setMode: (mode) => put({ ...state, mode, filter: [] }),  // an account of one mode means nothing in another
+    setFilter: (filter) => put({ ...state, filter }),
+    setDemo: (demo) => put({ ...state, demo }),
+    select: (a) => put({ ...state, mode: a.kind === "manual" ? "manual" : "real", filter: [String(a.id)] }),
+    clear: () => put({ ...state, filter: [] }),
   }), [state, put])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
+/** Whether an account's own data (its open trades) is shown: the accounts picked, or with none picked every one but the demo ones, unless demo accounts are included. */
+export const accountShown = (a: Account, filter: string[], demo: boolean) => (filter.length ? filter.includes(String(a.id)) : !a.is_demo || demo)
+
 /** The accounts the current choice covers, for screens that list them (and for the live view). */
-export function chosenAccounts(accounts: Account[], mode: Mode, filter: string[]): Account[] {
+export function chosenAccounts(accounts: Account[], mode: Mode, filter: string[], demo = false): Account[] {
   const mine = accounts.filter((a) => (a.kind === "manual") === (mode === "manual"))
-  return filter.length === 0 ? mine : mine.filter((a) => filter.includes(String(a.id)))
+  return filter.length === 0 ? mine.filter((a) => !a.is_demo || demo) : mine.filter((a) => filter.includes(String(a.id)))  // demo accounts are left out unless included or picked by name
 }
 
 /** The dropdown: a button naming what is shown, and a sheet to change it. */
 export function ScopeBar({ trades, accounts }: { trades: JournalTrade[]; accounts: Account[] }) {
-  const { mode, filter, setMode, setFilter, clear } = useScope()
+  const { mode, filter, demo, setDemo, setMode, setFilter, clear } = useScope()
   const [open, setOpen] = useState(false)
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const inM = trades.filter((t) => inMode(t, mode))
+  const visible = inM.filter((t) => demoShown(t, [], demo))  // what "All accounts" covers: demo accounts only when included
   const of = (id: string) => inM.filter((t) => (id === "none" ? t.account_id == null : String(t.account_id) === id))
   const sum = (ts: JournalTrade[]) => ts.reduce((a, t) => a + pnlOf(t), 0)
   const options = mode === "backtest" ? [] : [
-    ...accounts.filter((a) => (a.kind === "manual") === (mode === "manual")).map((a) => ({ id: String(a.id), label: a.name, prop: a.is_prop, ts: of(String(a.id)) })),
-    ...(of("none").length > 0 ? [{ id: "none", label: mode === "manual" ? "No account" : "Imported, no account", prop: false, ts: of("none") }] : []),
+    ...accounts.filter((a) => (a.kind === "manual") === (mode === "manual")).map((a) => ({ id: String(a.id), label: a.name, prop: a.is_prop, demo: !!a.is_demo, ts: of(String(a.id)) })),
+    ...(of("none").length > 0 ? [{ id: "none", label: mode === "manual" ? "No account" : "Imported, no account", prop: false, demo: false, ts: of("none") }] : []),
   ]
   const hasManual = accounts.some((a) => a.kind === "manual") || trades.some((t) => inMode(t, "manual"))
   const hasReplay = trades.some(isReplay)
+  const hasDemo = accounts.some((a) => a.is_demo)
   const label = mode === "backtest" ? "Backtested" : filter.length === 0 ? (mode === "manual" ? "All manual accounts" : "All accounts") : filter.length === 1 ? options.find((o) => o.id === filter[0])?.label ?? "1 account" : `${filter.length} accounts`
   const toggle = (id: string) => setFilter(filter.includes(id) ? filter.filter((x) => x !== id) : [...filter, id])
 
@@ -88,9 +96,18 @@ export function ScopeBar({ trades, accounts }: { trades: JournalTrade[]; account
           <ScrollView style={{ marginTop: 6 }}>
             {mode === "backtest" ? <Muted style={{ paddingVertical: 14 }}>Trades taken in Backtest replay sessions: practice on past markets, not real money.</Muted> : (
               <>
-                <Option label={mode === "manual" ? "All manual accounts" : "All accounts"} n={inM.length} net={sum(inM)} on={filter.length === 0} onPress={() => { clear(); setOpen(false) }} />
-                {options.map((o) => <Option key={o.id} label={o.label} prop={o.prop} n={o.ts.length} net={sum(o.ts)} on={filter.includes(o.id)} onPress={() => toggle(o.id)} />)}
+                <Option label={mode === "manual" ? "All manual accounts" : "All accounts"} n={visible.length} net={sum(visible)} on={filter.length === 0} onPress={() => { clear(); setOpen(false) }} />
+                {options.map((o) => <Option key={o.id} label={o.label} prop={o.prop} demo={o.demo} n={o.ts.length} net={sum(o.ts)} on={filter.includes(o.id)} onPress={() => toggle(o.id)} />)}
                 {options.length > 1 ? <Muted style={{ marginTop: 8, textAlign: "center" }}>Pick one or several accounts.</Muted> : null}
+                {hasDemo ? (
+                  <Row style={{ justifyContent: "space-between", marginTop: 12, paddingHorizontal: 4 }}>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>Include demo accounts</Text>
+                      <Muted>Demo trades are left out of Home and the journal unless you include them or pick that account.</Muted>
+                    </View>
+                    <Switch value={demo} onValueChange={setDemo} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+                  </Row>
+                ) : null}
               </>
             )}
           </ScrollView>
@@ -105,11 +122,11 @@ export function ScopeBar({ trades, accounts }: { trades: JournalTrade[]; account
   )
 }
 
-function Option({ label, n, net, on, prop, onPress }: { label: string; n: number; net: number; on: boolean; prop?: boolean; onPress: () => void }) {
+function Option({ label, n, net, on, prop, demo, onPress }: { label: string; n: number; net: number; on: boolean; prop?: boolean; demo?: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 12, marginTop: 8, borderRadius: radius.md, borderWidth: 1, borderColor: on ? `${colors.green}88` : colors.border, backgroundColor: on ? `${colors.green}14` : "transparent" }}>
       <View style={{ flex: 1, paddingRight: 10 }}>
-        <Row><Text numberOfLines={1} style={{ color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1 }}>{label}</Text>{prop ? <Text style={{ color: "#c4b5fd", fontSize: 9.5, fontWeight: "800", marginLeft: 8, letterSpacing: 0.6 }}>PROP</Text> : null}</Row>
+        <Row><Text numberOfLines={1} style={{ color: colors.text, fontSize: 15, fontWeight: "700", flexShrink: 1 }}>{label}</Text>{prop ? <Text style={{ color: "#c4b5fd", fontSize: 9.5, fontWeight: "800", marginLeft: 8, letterSpacing: 0.6 }}>PROP</Text> : null} {demo ? <Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "800", marginLeft: 8, letterSpacing: 0.6 }}>DEMO</Text> : null}</Row>
         <Muted>{n} trade{n === 1 ? "" : "s"}</Muted>
       </View>
       <Text style={{ color: tone(net), fontSize: 14, fontWeight: "800", marginRight: 10 }}>{money(net, "USD", true)}</Text>

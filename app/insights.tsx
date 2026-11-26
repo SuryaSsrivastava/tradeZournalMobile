@@ -17,9 +17,9 @@ const TONE = themed(() => ({ good: colors.green, bad: colors.red, info: colors.a
 export default function Insights() {
   const trades = useLoad(() => api.journalTrades(1000), { cache: "trades1000" })
   const accounts = useLoad(() => api.accounts())
-  const { mode, filter } = useScope()
+  const { mode, filter, demo } = useScope()
   const every = trades.data ?? []
-  const scoped = useMemo(() => every.filter((t) => inScope(t, mode, filter)), [every, mode, filter])
+  const scoped = useMemo(() => every.filter((t) => inScope(t, mode, filter, demo)), [every, mode, filter, demo])
   const list = useMemo(() => insights(scoped), [scoped])
   const bad = list.filter((i) => i.tone === "bad"), good = list.filter((i) => i.tone !== "bad")
 

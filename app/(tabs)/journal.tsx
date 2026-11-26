@@ -43,9 +43,9 @@ export default function Journal() {
   const accounts = useLoad(() => api.accounts(), { cache: "accounts" })
   const counts = useLoad(() => api.journalShotCounts(), { cache: "shotcounts" })
   const sync = useAutoSync(accounts.data?.accounts ?? [], () => { void trades.refresh(); void accounts.refresh() })
-  const { mode, filter: accts, setMode } = useScope()
+  const { mode, filter: accts, demo, setMode } = useScope()
   const every = trades.data ?? []
-  const all = every.filter((t) => inScope(t, mode, accts))  // follows the account chosen on Home or here
+  const all = every.filter((t) => inScope(t, mode, accts, demo))  // follows the account chosen on Home or here
   const other = (["backtest", "manual"] as const).map((m) => ({ m, n: every.filter((t) => inMode(t, m)).length })).filter((x) => x.m !== mode && x.n > 0)
 
   // a day with trades was tapped on the calendar: bring its trades into view (a day with none stays where it is)

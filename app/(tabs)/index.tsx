@@ -56,12 +56,12 @@ export default function Home() {
   const next = useLoad(async () => (await api.calendar("high", ["US"])).events.find((e) => +new Date(e.time) > Date.now()) ?? null, { every: 60_000 })
 
   const list = accounts.data?.accounts ?? []
-  const { mode, filter } = useScope()
+  const { mode, filter, demo } = useScope()
   const every = trades.data ?? []
-  const all = every.filter((t) => inScope(t, mode, filter))  // everything below follows the chosen accounts
+  const all = every.filter((t) => inScope(t, mode, filter, demo))  // everything below follows the chosen accounts
   const st = journalStats(all)
   const picked = mode !== "real" || filter.length > 0
-  const today = picked ? st.today : list.reduce((sum, a) => sum + (a.prop?.today ?? 0), 0) || st.today
+  const today = picked ? st.today : list.filter((a) => !a.is_demo || demo).reduce((sum, a) => sum + (a.prop?.today ?? 0), 0) || st.today
   const first = (user?.name || user?.email || "").split(/[ @]/)[0]
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
@@ -119,7 +119,7 @@ export default function Home() {
         {all.length > 0 ? <Row style={{ justifyContent: "space-between", marginTop: 6 }}><Muted>All time</Muted><Text style={{ color: tone(st.net), fontSize: 13, fontWeight: "800" }}>{money(st.net, "USD", true)}</Text></Row> : null}
       </Card>
 
-      <LiveTrades accounts={chosenAccounts(list, mode, filter)} />
+      <LiveTrades accounts={chosenAccounts(list, mode, filter, demo)} />
 
       {user?.is_admin ? <CopyCard /> : null}
 
@@ -143,7 +143,7 @@ export default function Home() {
 
       {meters.length > 0 ? <GuardRailsCard meters={meters} onEdit={() => router.push("/goals")} delay={180} /> : null}
 
-      {chosenAccounts(list, mode, filter).filter((a) => a.is_prop && a.status !== "paused" && a.prop).map((a, i) => <PropCard key={a.id} account={a} delay={200 + i * 40} />)}
+      {chosenAccounts(list, mode, filter, demo).filter((a) => a.is_prop && a.status !== "paused" && a.prop).map((a, i) => <PropCard key={a.id} account={a} delay={200 + i * 40} />)}
 
       {rules.loaded && meters.length === 0 ? (
         <Card delay={180}>

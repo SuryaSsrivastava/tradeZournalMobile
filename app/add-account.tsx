@@ -23,6 +23,7 @@ export default function AddAccount() {
   const [password, setPassword] = useState("")
   const [server, setServer] = useState("")
   const [prop, setProp] = useState(false)
+  const [demo, setDemo] = useState(false)
   const [daily, setDaily] = useState("")
   const [dd, setDd] = useState("")
   const [trailing, setTrailing] = useState(false)
@@ -38,7 +39,7 @@ export default function AddAccount() {
     if (!bal || bal <= 0) return setError("Enter the starting balance.")
     if (kind === "metaapi" && !(login.trim() && password && server.trim())) return setError("MetaTrader needs the account number, the investor password and the server name.")
     const rules: PropRules = prop ? { daily_loss_pct: num(daily), max_dd_pct: num(dd), trailing, target_pct: num(target), min_days: num(days) } : {}
-    const body: NewAccount = { name: name.trim(), kind, starting_balance: bal, is_prop: prop, rules, ...(kind === "metaapi" ? { broker: "mt5", login: login.trim(), mt_password: password, server: server.trim(), platform } : {}) }
+    const body: NewAccount = { name: name.trim(), kind, starting_balance: bal, is_prop: prop, is_demo: demo, rules, ...(kind === "metaapi" ? { broker: "mt5", login: login.trim(), mt_password: password, server: server.trim(), platform } : {}) }
     setBusy(true); setError(null)
     try {
       const a = await api.addAccount(body)
@@ -103,6 +104,13 @@ export default function AddAccount() {
               <Muted style={{ marginTop: 3 }}>Track the firm's daily loss, drawdown and profit target.</Muted>
             </View>
             <Switch value={prop} onValueChange={setProp} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+          </Row>
+          <Row style={{ justifyContent: "space-between", marginTop: 14 }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>This is a demo account</Text>
+              <Muted style={{ marginTop: 3 }}>Left out of Home and the journal unless you include demo accounts.</Muted>
+            </View>
+            <Switch value={demo} onValueChange={setDemo} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
           </Row>
           {prop ? (
             <View style={{ marginTop: 14 }}>

@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import { Alert, Switch, Text, View } from "react-native"
-import { api, ApiError, type PropRules } from "../../src/api"
+import { api, ApiError, isMt5, type PropRules } from "../../src/api"
 import { CheckMark, success } from "../../src/delight"
 import { Rise } from "../../src/fx"
 import { useLoad } from "../../src/hooks"
@@ -25,6 +25,7 @@ export default function EditAccount() {
   const [name, setName] = useState("")
   const [balance, setBalance] = useState("")
   const [prop, setProp] = useState(false)
+  const [demo, setDemo] = useState(false)
   const [daily, setDaily] = useState("")
   const [dd, setDd] = useState("")
   const [trailing, setTrailing] = useState(false)
@@ -39,7 +40,7 @@ export default function EditAccount() {
   useEffect(() => {
     if (!a) return
     const r: PropRules = a.rules ?? {}
-    setName(a.name); setBalance(str(a.starting_balance)); setProp(a.is_prop)
+    setName(a.name); setBalance(str(a.starting_balance)); setProp(a.is_prop); setDemo(!!a.is_demo)
     setDaily(str(r.daily_loss_pct)); setDd(str(r.max_dd_pct)); setTrailing(!!r.trailing); setTarget(str(r.target_pct)); setDays(r.min_days ? String(r.min_days) : "")
   }, [a?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -49,7 +50,7 @@ export default function EditAccount() {
     if (!bal || bal <= 0) return setError("Enter the starting balance.")
     setBusy("save"); setError(null); setSaved(false)
     try {
-      await api.updateTradingAccount(Number(id), { name: name.trim(), starting_balance: bal, is_prop: prop, rules: prop ? { daily_loss_pct: num(daily), max_dd_pct: num(dd), trailing, target_pct: num(target), min_days: num(days) } : {} })
+      await api.updateTradingAccount(Number(id), { name: name.trim(), starting_balance: bal, is_prop: prop, is_demo: demo, rules: prop ? { daily_loss_pct: num(daily), max_dd_pct: num(dd), trailing, target_pct: num(target), min_days: num(days) } : {} })
       success(); setSaved(true); setTimeout(() => setSaved(false), 2500)
       await accounts.refresh()
     } catch (e) {
@@ -78,7 +79,7 @@ export default function EditAccount() {
       setBusy(null)
     }
   }
-  const canSync = !!a && a.kind === "metaapi" && a.status !== "paused"
+  const canSync = !!a && isMt5(a) && a.status !== "paused"
   useEffect(() => {  // opening the account brings its new trades in, once
     if (canSync && autoDone.current !== id) { autoDone.current = id; void sync(true) }
   }, [canSync, id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -138,6 +139,13 @@ export default function EditAccount() {
               <Muted style={{ marginTop: 3 }}>Track the firm's daily loss, drawdown and profit target.</Muted>
             </View>
             <Switch value={prop} onValueChange={setProp} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+          </Row>
+          <Row style={{ justifyContent: "space-between", marginTop: 14 }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>Demo account</Text>
+              <Muted style={{ marginTop: 3 }}>Left out of Home and the journal unless you include demo accounts.</Muted>
+            </View>
+            <Switch value={demo} onValueChange={setDemo} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
           </Row>
           {prop ? (
             <View style={{ marginTop: 14 }}>

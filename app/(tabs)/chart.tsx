@@ -13,6 +13,7 @@ import { watchable } from "../../src/live"
 import { colors } from "../../src/theme"
 import { Button, Card, ErrorNote, Field, Muted, Pill, Row, Screen } from "../../src/ui"
 import { usePrivacy } from "../../src/privacy"
+import { accountShown, useScope } from "../../src/scope"
 
 const AMBER = "#f5b53d"
 const canon = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "")
@@ -41,7 +42,8 @@ export default function Chart() {
   const plan = useLoad(() => api.planUsage())
   const fastOk = !!user?.is_admin || !!plan.data?.limits?.fast_timeframes  // 1m and 5m are a switch of the plan (the server refuses them otherwise)
   const accounts = useLoad(() => api.accounts())
-  const open: Account[] = watchable(accounts.data?.accounts ?? [])
+  const { filter, demo } = useScope()
+  const open: Account[] = watchable(accounts.data?.accounts ?? []).filter((a) => accountShown(a, filter, demo))  // the same accounts as Home: demo ones only when included or picked
   const live = useLoad(() => Promise.all(open.map((a) => api.accountLive(a.id).then((v) => ({ a, v })).catch(() => null))), { every: 5000, deps: [open.map((a) => a.id).join(",")] })
 
   const all = feed.candles

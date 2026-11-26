@@ -32,7 +32,7 @@ export default function Positions() {
   const [note, setNote] = useState<string | null>(null)
   const open = (v?.positions ?? []).filter((p) => !gone.includes(p.id))
   const history = useProfitHistory(open, v?.at)
-  useEffect(() => { if (id !== null && v?.state === "live" && open.length > 0) void startLiveNotification(id, canClose) }, [id, v?.state, open.length > 0, canClose])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (id !== null && v?.state === "live" && open.length > 0 && !acct?.is_demo) void startLiveNotification(id, canClose) }, [id, v?.state, open.length > 0, canClose, acct?.is_demo])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const close = (items: LivePosition[], title: string, text: string) => Alert.alert(title, text, [
     { text: "Cancel", style: "cancel" },

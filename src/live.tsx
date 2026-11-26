@@ -34,7 +34,7 @@ function AccountLive({ account }: { account: Account }) {
   const canProtect = !!user?.is_admin && isMt5(account)  // moving a stop is an order too: admins only
   const history = useProfitHistory(open, v?.at)
   const running = v?.state === "live" && open.length > 0
-  useEffect(() => { if (running) void startLiveNotification(account.id, canClose) }, [running, account.id, canClose])  // a trade is open: keep it in the notification bar too (if the member turned that on)
+  useEffect(() => { if (running && !account.is_demo) void startLiveNotification(account.id, canClose) }, [running, account.id, canClose, account.is_demo])  // not for a demo account: its trades are practice  // a trade is open: keep it in the notification bar too (if the member turned that on)
   const none = v?.state === "live" && open.length === 0
   useEffect(() => { if (none) void clearLiveNotificationHidden() }, [none])  // nothing open: if they had hidden the notification, the next trade shows it again
   if (!running) return null

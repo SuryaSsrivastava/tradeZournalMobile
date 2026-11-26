@@ -13,7 +13,7 @@ export type PlanUsage = { credits?: Record<string, number>; plan: string; lapsed
 export type Notice = { id: number; kind: string; title: string; body: string; link: string; read: boolean; created_at: string }
 export type Account = {
   goals?: Partial<Goals>
-  id: number; name: string; kind: string; broker?: string | null; server?: string | null; is_prop: boolean; status: "active" | "connecting" | "error" | "paused"
+  id: number; name: string; kind: string; broker?: string | null; server?: string | null; is_prop: boolean; is_demo?: boolean; status: "active" | "connecting" | "error" | "paused"
   hint: string; prop: {
     balance: number; equity: number; today: number
     state?: "ok" | "warn" | "breached"; basis?: string; trading_days?: number; min_days?: number; profitable_days?: number
@@ -34,7 +34,7 @@ export type PropRules = { daily_loss_pct?: number; max_dd_pct?: number; trailing
 /** A MetaTrader account. The server calls this kind "mt5" now; "metaapi" is what it was called, and what an older copy of the data may still say. */
 export const isMt5 = (a: { kind: string }) => a.kind === "mt5" || a.kind === "metaapi"
 
-export type NewAccount = { name: string; kind: "manual" | "metaapi"; starting_balance: number; is_prop: boolean; rules?: PropRules; broker?: "mt5"; login?: string; mt_password?: string; server?: string; platform?: "mt4" | "mt5" }
+export type NewAccount = { name: string; kind: "manual" | "metaapi"; starting_balance: number; is_prop: boolean; is_demo?: boolean; rules?: PropRules; broker?: "mt5"; login?: string; mt_password?: string; server?: string; platform?: "mt4" | "mt5" }
 export type PlanInfo = { label: string; tagline: string; strategies: number | null; explanations: number | null; coach_reviews: number | null; forward_tests: number | null; replay_sessions: number | null; ai_requests: number | null; connected_accounts: number | null; replay_screenshots: boolean; live_positions: boolean; premium_models: boolean; support: string }
 export type Pricing = { currency: "USD" | "INR"; tiers: Record<string, { monthly: number; yearly: number; list: number }>; offer: { label: string; ends_at: string | null } | null }
 export type SubscriptionInfo = { id: number; plan: string; period: "monthly" | "yearly"; currency: string; amount: number; status: string; next_charge_at: string | null; access_until: string | null; cancel_requested: boolean; failed_count: number; last_error: string; last_payment_at: string | null }
@@ -51,7 +51,7 @@ export type InvestOrder = { id: number; broker: string; side: string; symbol: st
 export type JournalTrade = {
   id: number; symbol: string; broker_symbol?: string; side: "Long" | "Short"; setup: string; entry: number; exit: number; qty: number; risk: number; opened_at: string; exit_at: string | null
   emotions: string[]; tags: string[]; rating: number; note: string; source: string; broker: string; fees: number; pnl: number | null
-  stop: number | null; target: number | null; followed_plan: boolean | null; account_id: number | null; manual: boolean
+  stop: number | null; target: number | null; followed_plan: boolean | null; account_id: number | null; manual: boolean; demo?: boolean
 }
 export type NewTrade = { symbol: string; side: "Long" | "Short"; entry: number; exit: number; qty: number; risk: number; setup?: string; rating?: number; note?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
 export type TradeEdit = { note?: string; rating?: number; setup?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
@@ -239,7 +239,7 @@ export const api = {
   unregisterDevice: (tokenValue: string) => request<void>(`/notifications/devices?token=${encodeURIComponent(tokenValue)}`, { method: "DELETE" }),
   testPush: () => request<void>("/notifications/devices/test", { method: "POST" }),
   accounts: () => request<{ accounts: Account[] }>("/accounts"),
-  updateTradingAccount: (id: number, b: { name?: string; is_prop?: boolean; starting_balance?: number; rules?: PropRules; paused?: boolean }) => request<Account>(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  updateTradingAccount: (id: number, b: { name?: string; is_prop?: boolean; is_demo?: boolean; starting_balance?: number; rules?: PropRules; paused?: boolean }) => request<Account>(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   removeTradingAccount: (id: number, deleteTrades: boolean) => request<void>(`/accounts/${id}?delete_trades=${deleteTrades}`, { method: "DELETE" }),
   addAccount: (b: NewAccount) => request<Account>("/accounts", { method: "POST", body: JSON.stringify(b) }),
   /** Admin only: move the stop of an open trade to break-even, or lock in a share of its profit. It only ever tightens the stop; followers of a copy link copy it. */

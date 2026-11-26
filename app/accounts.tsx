@@ -37,6 +37,7 @@ export default function Accounts() {
                     <Row>
                       <Text numberOfLines={1} style={{ color: colors.text, fontSize: 16, fontWeight: "800", flexShrink: 1 }}>{a.name}</Text>
                       {a.is_prop ? <View style={{ marginLeft: 8, backgroundColor: "#a78bfa22", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 }}><Text style={{ color: "#c4b5fd", fontSize: 9.5, fontWeight: "800" }}>PROP</Text></View> : null}
+                      {a.is_demo ? <View style={{ marginLeft: 8, backgroundColor: `${colors.muted}22`, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 }}><Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "800" }}>DEMO</Text></View> : null}
                     </Row>
                     <Muted style={{ marginTop: 3 }}>{a.kind === "manual" ? "Manual journal" : "MetaTrader"}{a.hint ? ` · ${a.hint}` : ""} · {count(a.id)} trade{count(a.id) === 1 ? "" : "s"}</Muted>
                     {a.starting_balance ? <Muted>Started with {money(a.starting_balance, a.currency || "USD")}</Muted> : null}
