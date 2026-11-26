@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Alert, Pressable, ScrollView, Text, View } from "react-native"
 import { api, type Account, type LivePosition } from "../../src/api"
 import { useAuth } from "../../src/auth"
-import { CandleChart, type ChartLine, type View2 } from "../../src/candlechart"
+import { CandleChart, HOME, type ChartLine, type View2 } from "../../src/candlechart"
 import { FAST, TIMEFRAMES, useCandles, type Frame } from "../../src/candles"
 import { success } from "../../src/delight"
 import { money, price } from "../../src/format"
@@ -26,11 +26,12 @@ export default function Chart() {
   const [symbol, setSymbol] = useState((want ?? "XAUUSD").toUpperCase())
   useEffect(() => { if (want) { setSymbol(want.toUpperCase()); setDraft(null) } }, [want])  // opened from Price alerts for another market (the tab stays mounted)
   const [frame, setFrame] = useState<Frame>("15m")
-  const [view, setView] = useState<View2>({ count: 80, off: 0 })
+  const [view, setView] = useState<View2>({ count: 80, off: HOME })
   const [panel, setPanel] = useState(false)
   const [pick, setPick] = useState(false)
   const [find, setFind] = useState("")
   const [draft, setDraft] = useState<number | null>(null)
+  const [moving, setMoving] = useState<{ id: number; price: number } | null>(null)  // a saved alert being dragged to another price
   const [busy, setBusy] = useState<string | null>(null)
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -51,7 +52,7 @@ export default function Chart() {
   useEffect(() => { if (all.length > 0 && view.off + view.count >= all.length - 15) feed.older() }, [view.off, view.count, all.length])  // eslint-disable-line react-hooks/exhaustive-deps
   const choose = (f: Frame) => {
     if (FAST.includes(f) && !fastOk) { setNote({ ok: false, text: "The 1-minute and 5-minute charts are not part of your plan." }); return }
-    setNote(null); setFrame(f); setDraft(null); setView({ count: view.count, off: 0 })
+    setNote(null); setFrame(f); setDraft(null); setView({ count: view.count, off: HOME })
   }
 
   const waiting = (alerts.data?.items ?? []).filter((a) => !a.triggered_at && a.symbol === symbol)
@@ -65,6 +66,21 @@ export default function Chart() {
       setBusy(null)
     } },
   ])
+  const moveAlert = (a: { id: number; direction: "above" | "below"; price: number }, to: number) => {
+    if (last === null || to === a.price) { setMoving(null); return }
+    Alert.alert("Move this alert?", `${price(a.price)} to ${price(to)}`, [
+      { text: "Cancel", style: "cancel", onPress: () => setMoving(null) },
+      { text: "Move", onPress: async () => {
+        setBusy(`a${a.id}`); setNote(null)
+        try {
+          await api.removePriceAlert(a.id)
+          try { await api.addPriceAlert({ symbol, direction: to > last ? "above" : "below", price: to }) } catch (e) { await api.addPriceAlert({ symbol, direction: a.direction, price: a.price }).catch(() => {}); throw e }  // the new one was refused: the old one comes back
+          setNote({ ok: true, text: "Alert moved." })
+        } catch (e) { setNote({ ok: false, text: e instanceof Error ? e.message : "Could not move the alert." }) }
+        await alerts.refresh(); setMoving(null); setBusy(null)
+      } },
+    ])
+  }
   const closeTrade = (a: Account, p: LivePosition) => Alert.alert(`Close this ${p.symbol} ${p.side.toLowerCase()} now?`, `${p.volume ?? ""} lots are closed at the current market price.`, [
     { text: "Cancel", style: "cancel" },
     { text: "Close position", style: "destructive", onPress: async () => {
@@ -84,7 +100,7 @@ export default function Chart() {
   }
 
   const lines: ChartLine[] = [
-    ...waiting.map((a) => ({ id: `a${a.id}`, price: a.price, color: AMBER, dashed: true, label: `${a.direction === "above" ? "▲" : "▼"} ${price(a.price)}`, cross: () => removeAlert(a.id, `${a.direction === "above" ? "Goes above" : "Drops below"} ${price(a.price)}`), busy: busy === `a${a.id}` })),
+    ...waiting.map((a) => { const at = moving?.id === a.id ? moving.price : a.price; return { id: `a${a.id}`, price: at, color: AMBER, dashed: true, label: `${at > (last ?? at) ? "▲" : "▼"} ${price(at)}`, cross: () => removeAlert(a.id, `${a.direction === "above" ? "Goes above" : "Drops below"} ${price(a.price)}`), busy: busy === `a${a.id}`, onDrag: (p: number) => { if (last !== null) setMoving({ id: a.id, price: round(p, last) }) }, onDrop: (p: number) => { if (last !== null) moveAlert(a, round(p, last)) } } }),
     ...trades.flatMap(({ a, p, cur, can }): ChartLine[] => {
       const out: ChartLine[] = []
       if (p.open_price) out.push({ id: `p${p.id}`, price: p.open_price, color: p.profit >= 0 ? colors.green : colors.red, dashed: true, label: `${p.side === "Long" ? "BUY" : "SELL"} ${p.volume ?? ""} @ ${price(p.open_price)} · ${money(p.profit, cur, true)}`, cross: can ? () => closeTrade(a, p) : undefined, busy: busy === `p${p.id}` })
@@ -92,7 +108,7 @@ export default function Chart() {
       if (p.target) out.push({ id: `t${p.id}`, price: p.target, color: colors.green, dashed: true, label: `TP ${price(p.target)}` })
       return out
     }),
-    ...(draft !== null && last !== null ? [{ id: "draft", price: draft, color: colors.text, label: `${draft > last ? "above" : "below"} ${price(draft)}`, confirm: () => void addAlert(), cross: () => setDraft(null), busy: busy === "draft" }] : []),
+    ...(draft !== null && last !== null ? [{ id: "draft", price: draft, color: colors.text, fg: colors.bg, label: `${draft > last ? "above" : "below"} ${price(draft)}`, confirm: () => void addAlert(), cross: () => setDraft(null), busy: busy === "draft", onDrag: (p: number) => { if (last !== null) setDraft(round(p, last)) } }] : []),
   ]
 
   const matches = useMemo(() => {
@@ -121,7 +137,7 @@ export default function Chart() {
         <Card>
           <Field label="Find a market" value={find} onChangeText={setFind} placeholder="Gold, EURUSD, Bitcoin..." autoCapitalize="none" autoCorrect={false} />
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {matches.map((q) => <Pill key={q.symbol} active={q.symbol === symbol} onPress={() => { setSymbol(q.symbol); setDraft(null); setPick(false); setFind(""); setView({ count: view.count, off: 0 }) }}>{q.symbol}</Pill>)}
+            {matches.map((q) => <Pill key={q.symbol} active={q.symbol === symbol} onPress={() => { setSymbol(q.symbol); setDraft(null); setPick(false); setFind(""); setView({ count: view.count, off: HOME }) }}>{q.symbol}</Pill>)}
           </View>
         </Card>
       ) : null}
@@ -132,7 +148,7 @@ export default function Chart() {
 
       {feed.error ? <ErrorNote>{feed.error}</ErrorNote> : null}
       <CandleChart candles={all} lines={lines} last={last} view={view} setView={setView} onPick={(p) => { if (last !== null) setDraft(round(p, last)) }} />
-      <Muted style={{ marginTop: 6, fontSize: 11.5 }}>{draft !== null ? "Tap + on the white line to add the alert, or tap the chart to move it." : "Hold for a price line, let go to place an alert · drag the price or time scale to stretch"}</Muted>
+      <Muted style={{ marginTop: 6, fontSize: 11.5 }}>{draft !== null ? "Tap + on the white line to add the alert, or drag the line to move it." : "Hold for a price line, let go to place an alert · drag the price or time scale to stretch"}</Muted>
 
       {note ? <View style={{ marginTop: 4 }}>{note.ok ? <Muted style={{ color: colors.green }}>{note.text}</Muted> : <ErrorNote>{note.text}</ErrorNote>}</View> : null}
       {draft !== null ? <View style={{ marginTop: 6 }}><Button onPress={addAlert} busy={busy === "draft"}>{`Add alert: ${last !== null && draft > last ? "goes above" : "drops below"} ${price(draft)}`}</Button></View> : null}
