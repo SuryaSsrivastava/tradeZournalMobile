@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react"
 import { ActivityIndicator, Pressable, Text, View } from "react-native"
 import { api, type LivePosition } from "./api"
-import { colors } from "./theme"
+import { colors, currentScheme } from "./theme"
 import { Muted, Row } from "./ui"
 
 /** A trade a copy link opened (its comment is tz<link>:<master ticket>): its stop comes from the master's, so it is protected on the master. */
@@ -24,6 +24,10 @@ function Protect({ accountId, p, onMoved }: { accountId: number; p: LivePosition
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const profit = inProfit(p)
+  // small text in the theme's green and red is under 4.5:1 on white (3.4 and 4.5), so daylight uses deeper shades for it
+  const light = currentScheme() === "light"
+  const okText = light ? "#0a7d4d" : colors.green
+  const badText = light ? "#c8304a" : colors.red
   const go = async (body: Parameters<typeof api.moveStop>[2], label: string) => {
     if (busy) return
     setBusy(true); setMsg(null)
@@ -51,12 +55,12 @@ function Protect({ accountId, p, onMoved }: { accountId: number; p: LivePosition
         <View style={{ marginTop: 8, gap: 8 }}>
           {!profit ? <Muted>Not in profit yet: there is nothing to lock in.</Muted> : null}
           <Row style={{ flexWrap: "wrap", gap: 8 }}>
-            {chip("Break-even", () => void go({ mode: "breakeven" }, "Break-even"), colors.green)}
+            {chip("Break-even", () => void go({ mode: "breakeven" }, "Break-even"), okText)}
             {[25, 50, 75].map((n) => chip(`Lock ${n}%`, () => void go({ mode: "lock_pct", pct: n }, `Locked ${n}% of the profit`)))}
             {busy ? <ActivityIndicator size="small" color={colors.muted} /> : null}
           </Row>
           <Muted>Locking 50% on a trade up 10 points moves the stop to 5 points in profit. The stop only ever moves closer.</Muted>
-          {msg ? <Text style={{ color: msg.ok ? colors.green : colors.red, fontSize: 12.5 }}>{msg.text}</Text> : null}
+          {msg ? <Text style={{ color: msg.ok ? okText : badText, fontSize: 12.5 }}>{msg.text}</Text> : null}
         </View>
       ) : null}
     </View>
