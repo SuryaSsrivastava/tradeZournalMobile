@@ -1,7 +1,7 @@
 import { useFocusEffect } from "expo-router"
 import { useCallback, useRef } from "react"
 import { AppState } from "react-native"
-import { api, type Account } from "./api"
+import { api, isMt5, type Account } from "./api"
 
 let last = 0
 
@@ -10,7 +10,7 @@ let last = 0
  * (the server only starts a MetaTrader terminal once per cooldown) or a failure is not an error here. `connecting` means a terminal was just started: its trades arrive in a minute or two.
  */
 export async function autoSyncAccounts(accounts: Account[], gapMs = 5 * 60_000, force = false): Promise<{ added: number; connecting: boolean }> {
-  const targets = accounts.filter((a) => a.kind === "metaapi" && a.status !== "paused")
+  const targets = accounts.filter((a) => isMt5(a) && a.status !== "paused")
   if (targets.length === 0 || (!force && Date.now() - last < gapMs)) return { added: 0, connecting: false }
   last = Date.now()
   const done = await Promise.all(targets.map((a) => api.syncAccount(a.id, true).catch(() => null)))

@@ -2,18 +2,19 @@ import { Flash } from "./delight"
 import { useRouter } from "expo-router"
 import { useEffect, useState } from "react"
 import { Alert, Pressable, Text, View } from "react-native"
-import { api, type Account, type LivePosition } from "./api"
+import { api, isMt5, type Account, type LivePosition } from "./api"
 import { useAuth } from "./auth"
 import { CountUp, Pulse } from "./fx"
 import { money, price } from "./format"
 import { useLoad } from "./hooks"
 import { CloseX, LiveLine, RangeBar, useProfitHistory } from "./livechart"
 import { clearLiveNotificationHidden, startLiveNotification } from "./liveservice"
+import { ProtectStop } from "./protect"
 import { colors } from "./theme"
 import { Card, Muted, Row, tone } from "./ui"
 
 /** The accounts whose open trades can be watched live. */
-export const watchable = (accounts: Account[]) => accounts.filter((a) => (a.kind === "metaapi" || a.kind === "webhook") && a.status !== "paused")
+export const watchable = (accounts: Account[]) => accounts.filter((a) => (isMt5(a) || a.kind === "webhook") && a.status !== "paused")
 
 /** Open trades of every connected account, one card each. Nothing shows for an account with nothing open (or one that cannot be watched). */
 export function LiveTrades({ accounts }: { accounts: Account[] }) {
@@ -29,7 +30,8 @@ function AccountLive({ account }: { account: Account }) {
   const [note, setNote] = useState<string | null>(null)
   const v = live.data
   const open = (v?.positions ?? []).filter((p) => !gone.includes(p.id))
-  const canClose = !!user?.is_admin && account.kind === "metaapi"  // the server's own rule for trading live
+  const canClose = !!user?.is_admin && account.kind === "metaapi"  // the server's own rule for trading live (the close route is not on the server now, so this stays off for "mt5" accounts)
+  const canProtect = !!user?.is_admin && isMt5(account)  // moving a stop is an order too: admins only
   const history = useProfitHistory(open, v?.at)
   const running = v?.state === "live" && open.length > 0
   useEffect(() => { if (running) void startLiveNotification(account.id, canClose) }, [running, account.id, canClose])  // a trade is open: keep it in the notification bar too (if the member turned that on)
@@ -74,6 +76,7 @@ function AccountLive({ account }: { account: Account }) {
             <View style={{ marginTop: 6 }}><LiveLine points={history[p.id] ?? [p.profit]} /></View>
             <RangeBar stop={p.stop} target={p.target} open={p.open_price} now={p.price} />
             <Muted style={{ marginTop: 6 }}>{price(p.open_price)} → {price(p.price)}</Muted>
+            {canProtect ? <ProtectStop accountId={account.id} p={p} onMoved={() => void live.refresh()} /> : null}
           </View>
         )
       })}

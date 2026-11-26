@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react"
 import { Alert, Text, View } from "react-native"
-import { api, type Account, type LivePosition } from "../src/api"
+import { api, isMt5, type Account, type LivePosition } from "../src/api"
 import { useAuth } from "../src/auth"
 import { CloseX, LiveLine, RangeBar, useProfitHistory } from "../src/livechart"
 import { startLiveNotification } from "../src/liveservice"
 import { CountUp } from "../src/fx"
+import { ProtectStop } from "../src/protect"
 import { ago, money, price } from "../src/format"
 import { useLoad } from "../src/hooks"
 import { colors } from "../src/theme"
@@ -16,7 +17,7 @@ import { usePrivacy } from "../src/privacy"
 export default function Positions() {
   usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const accounts = useLoad(() => api.accounts())
-  const usable: Account[] = (accounts.data?.accounts ?? []).filter((a) => a.kind === "metaapi" || a.kind === "webhook")
+  const usable: Account[] = (accounts.data?.accounts ?? []).filter((a) => isMt5(a) || a.kind === "webhook")
   const [picked, setPicked] = useState<number | null>(null)
   useEffect(() => { if (picked === null && usable.length > 0) setPicked(usable[0].id) }, [usable, picked])
   const id = picked
@@ -24,7 +25,8 @@ export default function Positions() {
   const v = live.data
   const { user } = useAuth()
   const acct = usable.find((a) => a.id === id)
-  const canClose = !!user?.is_admin && acct?.kind === "metaapi"  // the server's own rule for trading live
+  const canClose = !!user?.is_admin && acct?.kind === "metaapi"  // the server's own rule for trading live (the close route is not on the server now, so this stays off for "mt5" accounts)
+  const canProtect = !!user?.is_admin && !!acct && isMt5(acct)  // moving a stop is an order too: admins only
   const [closing, setClosing] = useState<string | null>(null)
   const [gone, setGone] = useState<string[]>([])  // closed a moment ago: hidden until the next look agrees
   const [note, setNote] = useState<string | null>(null)
@@ -75,7 +77,7 @@ export default function Positions() {
                   {note ? <ErrorNote>{note}</ErrorNote> : null}
                   {open.length === 0 ? <Empty title="No open positions" text="Nothing is open on this account right now." /> : (
                     <>
-                      {open.map((p) => <PositionCard key={p.id} p={p} history={history[p.id] ?? [p.profit]} currency={v.currency} busy={closing === p.id} onClose={canClose ? () => close([p], `Close this ${p.symbol} ${p.side.toLowerCase()} now?`, `${p.volume ?? ""} lots are closed at the current market price.`) : undefined} />)}
+                      {open.map((p) => <PositionCard key={p.id} p={p} history={history[p.id] ?? [p.profit]} currency={v.currency} busy={closing === p.id} onClose={canClose ? () => close([p], `Close this ${p.symbol} ${p.side.toLowerCase()} now?`, `${p.volume ?? ""} lots are closed at the current market price.`) : undefined} protect={canProtect && id !== null ? { accountId: id, onMoved: () => void live.refresh() } : undefined} />)}
                       {canClose && open.length > 1 ? <Button tone="danger" disabled={closing !== null} onPress={() => close(open, "Close all open trades?", `${open.length} trades will be closed at the current market price.`)}>Close all ({open.length})</Button> : null}
                     </>
                   )}
@@ -90,7 +92,7 @@ export default function Positions() {
   )
 }
 
-function PositionCard({ p, history, currency, onClose, busy }: { p: LivePosition; history: number[]; currency?: string; onClose?: () => void; busy?: boolean }) {
+function PositionCard({ p, history, currency, onClose, busy, protect }: { p: LivePosition; history: number[]; currency?: string; onClose?: () => void; busy?: boolean; protect?: { accountId: number; onMoved: () => void } }) {
   const long = p.side === "Long"
   return (
     <Card>
@@ -115,6 +117,7 @@ function PositionCard({ p, history, currency, onClose, busy }: { p: LivePosition
         <Cell label="Target" value={p.target ? price(p.target) : "-"} />
       </Row>
       {p.opened_at ? <Muted style={{ marginTop: 8 }}>Opened {ago(p.opened_at)}</Muted> : null}
+      {protect ? <ProtectStop accountId={protect.accountId} p={p} onMoved={protect.onMoved} /> : null}
     </Card>
   )
 }

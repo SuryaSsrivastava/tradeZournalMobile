@@ -31,6 +31,9 @@ export type ForwardFull = Forward & { result: { closed: ForwardTrade[]; open: Fo
 export type EconEvent = { id: string; series: string; time: string; country: string; currency: string; name: string; importance: "high" | "medium" | "low"; actual: string; forecast: string; previous: string; above_forecast: boolean | null }
 export type NewsAlerts = { enabled: boolean; currencies: string[]; lead_minutes: number; events: string[] }
 export type PropRules = { daily_loss_pct?: number; max_dd_pct?: number; trailing?: boolean; target_pct?: number; min_days?: number }
+/** A MetaTrader account. The server calls this kind "mt5" now; "metaapi" is what it was called, and what an older copy of the data may still say. */
+export const isMt5 = (a: { kind: string }) => a.kind === "mt5" || a.kind === "metaapi"
+
 export type NewAccount = { name: string; kind: "manual" | "metaapi"; starting_balance: number; is_prop: boolean; rules?: PropRules; broker?: "mt5"; login?: string; mt_password?: string; server?: string; platform?: "mt4" | "mt5" }
 export type PlanInfo = { label: string; tagline: string; strategies: number | null; explanations: number | null; coach_reviews: number | null; forward_tests: number | null; replay_sessions: number | null; ai_requests: number | null; connected_accounts: number | null; replay_screenshots: boolean; live_positions: boolean; premium_models: boolean; support: string }
 export type Pricing = { currency: "USD" | "INR"; tiers: Record<string, { monthly: number; yearly: number; list: number }>; offer: { label: string; ends_at: string | null } | null }
@@ -239,6 +242,9 @@ export const api = {
   updateTradingAccount: (id: number, b: { name?: string; is_prop?: boolean; starting_balance?: number; rules?: PropRules; paused?: boolean }) => request<Account>(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   removeTradingAccount: (id: number, deleteTrades: boolean) => request<void>(`/accounts/${id}?delete_trades=${deleteTrades}`, { method: "DELETE" }),
   addAccount: (b: NewAccount) => request<Account>("/accounts", { method: "POST", body: JSON.stringify(b) }),
+  /** Admin only: move the stop of an open trade to break-even, or lock in a share of its profit. It only ever tightens the stop; followers of a copy link copy it. */
+  moveStop: (accountId: number, positionId: string, b: { mode: "breakeven" | "lock_pct" | "price"; pct?: number; offset?: number; price?: number }) =>
+    request<{ ok: boolean; stop: number; previous: number | null; symbol: string; followers: number }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/stop`, { method: "POST", body: JSON.stringify(b) }),
   closePosition: (accountId: number, positionId: string) => request<{ closed: boolean }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/close`, { method: "POST" }),
   /** Read an account's new trades from MetaTrader now. `auto` is the app doing it by itself on opening the account: the same sync, without the "your trades are in" notice. */
   syncAccount: (id: number, auto = false) => request<{ added: number; error: string | null; connecting?: boolean; skipped?: boolean }>(`/accounts/${id}/sync?auto=${auto}`, { method: "POST" }),
