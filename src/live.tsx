@@ -24,7 +24,7 @@ export function LiveTrades({ accounts }: { accounts: Account[] }) {
 function AccountLive({ account }: { account: Account }) {
   const router = useRouter()
   const { user } = useAuth()
-  const live = useLoad(() => api.accountLive(account.id), { every: 8000, deps: [account.id] })
+  const live = useLoad(() => api.accountLive(account.id), { deps: [account.id] })  // looked at once each time the home screen comes into view: no timer
   const [closing, setClosing] = useState<string | null>(null)
   const [gone, setGone] = useState<string[]>([])  // closed a moment ago: hidden until the next look agrees
   const [note, setNote] = useState<string | null>(null)

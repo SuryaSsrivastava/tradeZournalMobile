@@ -9,6 +9,7 @@ import { ProtectStop } from "../src/protect"
 import { AutoBreakeven } from "../src/autoprotect"
 import { ago, money, price } from "../src/format"
 import { useLoad } from "../src/hooks"
+import { useLiveStream } from "../src/livestream"
 import { colors } from "../src/theme"
 import { PlanNote } from "../src/upgrade"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../src/ui"
@@ -22,8 +23,9 @@ export default function Positions() {
   const [picked, setPicked] = useState<number | null>(null)
   useEffect(() => { if (picked === null && usable.length > 0) setPicked(usable[0].id) }, [usable, picked])
   const id = picked
-  const live = useLoad(() => (id === null ? Promise.resolve(null) : api.accountLive(id)), { every: 5000, deps: [id] })
-  const v = live.data
+  const stream = useLiveStream(id)  // the broker's updates pushed through the server: prices move as they happen
+  const live = useLoad(() => (id === null ? Promise.resolve(null) : api.accountLive(id)), { every: stream.streaming ? undefined : 5000, deps: [id] })  // while the stream flows nothing is asked; the 5-second look is only for when it cannot open
+  const v = stream.view ?? live.data
   const { user } = useAuth()
   const acct = usable.find((a) => a.id === id)
   const canClose = !!user?.is_admin && acct?.kind === "metaapi"  // the server's own rule for trading live (the close route is not on the server now, so this stays off for "mt5" accounts)
@@ -53,7 +55,7 @@ export default function Positions() {
 
   return (
     <Screen refreshing={live.refreshing} onRefresh={live.refresh} padTop={false}>
-      <Title sub="Updates every few seconds while you are on this screen">Live trades</Title>
+      <Title sub={stream.streaming ? "Live: prices move as the broker sends them" : "Updates every few seconds while you are on this screen"}>Live trades</Title>
       {accounts.error ? <ErrorNote>{accounts.error}</ErrorNote> : null}
       {usable.length > 1 ? (
         <Row style={{ flexWrap: "wrap" }}>{usable.map((a) => <Pill key={a.id} active={a.id === picked} onPress={() => setPicked(a.id)}>{a.name}</Pill>)}</Row>
