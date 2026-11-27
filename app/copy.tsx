@@ -6,6 +6,7 @@ import { useAuth } from "../src/auth"
 import { Pulse } from "../src/fx"
 import { ago } from "../src/format"
 import { useLoad } from "../src/hooks"
+import { LinkSettings, ModePick, Tags, flowLabel, modeOf } from "../src/copysettings"
 import { colors, radius } from "../src/theme"
 import { Button, Card, Empty, ErrorNote, Field, Label, Loading, Muted, Row, Screen } from "../src/ui"
 
@@ -39,7 +40,7 @@ function stateOf(l: CopyLink, eng: Engine): { text: string; color: string; runni
   if (eng.halted) return { text: "Halted", color: colors.red, running: false }
   const s = l.engine?.state
   if (s === "login_refused") return { text: "Login refused", color: colors.red, running: false }
-  if (s === "paused") return { text: "Paused: drawdown", color: colors.amber, running: false }
+  if (s === "paused") return { text: /loss limit/i.test(l.engine?.detail ?? "") ? "Paused: loss limit" : "Paused: drawdown", color: colors.amber, running: false }
   if (s === "running") return l.engine?.dry ? { text: "Recording only", color: colors.amber, running: true } : { text: "Running, live", color: colors.green, running: true }
   return { text: "Connecting…", color: colors.muted, running: false }
 }
@@ -96,53 +97,7 @@ const Strip = ({ children }: { children: ReactNode }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginHorizontal: -14 }} contentContainerStyle={{ paddingHorizontal: 14 }}>{children}</ScrollView>
 )
 
-const Seg = ({ value, onChange }: { value: "multiplier" | "fixed"; onChange: (m: "multiplier" | "fixed") => void }) => (
-  <Row style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, overflow: "hidden", alignSelf: "flex-start" }}>
-    {(["multiplier", "fixed"] as const).map((m) => (
-      <Pressable key={m} onPress={() => onChange(m)} style={{ paddingHorizontal: 16, height: 38, justifyContent: "center", backgroundColor: value === m ? colors.text : "transparent" }}>
-        <Text style={{ color: value === m ? colors.bg : colors.muted, fontSize: 13, fontWeight: "700" }}>{m === "fixed" ? "Fixed lot" : "Master lot ×"}</Text>
-      </Pressable>
-    ))}
-  </Row>
-)
-
-function Settings({ l, save, busy }: { l: CopyLink; save: (b: CopyPatch) => void; busy: boolean }) {
-  const [mode, setMode] = useState(l.mode)
-  const [value, setValue] = useState(String(l.value))
-  const [maxLot, setMaxLot] = useState(String(l.max_lot))
-  const [maxOpen, setMaxOpen] = useState(String(l.max_open))
-  const [maxDd, setMaxDd] = useState(String(l.max_dd_pct))
-  const [sltp, setSltp] = useState(l.copy_sltp)
-  const [map, setMap] = useState(Object.entries(l.symbol_map).map(([a, b]) => `${a}=${b}`).join(", "))
-  const submit = () => {
-    const symbol_map: Record<string, string> = {}
-    for (const part of map.split(",")) { const [a, b] = part.split("=").map((x) => x.trim()); if (a && b) symbol_map[a] = b }
-    save({ mode, value: +value || l.value, max_lot: +maxLot || l.max_lot, max_open: +maxOpen || l.max_open, max_dd_pct: +maxDd || 0, copy_sltp: sltp, symbol_map })
-  }
-  return (
-    <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
-      <Label>Size</Label>
-      <Seg value={mode} onChange={setMode} />
-      <View style={{ height: 12 }} />
-      <Row style={{ gap: 10 }}>
-        <View style={{ flex: 1 }}><Field label={mode === "fixed" ? "Lot" : "Factor"} value={value} onChangeText={setValue} keyboardType="decimal-pad" /></View>
-        <View style={{ flex: 1 }}><Field label="Max lot / order" value={maxLot} onChangeText={setMaxLot} keyboardType="decimal-pad" /></View>
-      </Row>
-      <Row style={{ gap: 10 }}>
-        <View style={{ flex: 1 }}><Field label="Max open copies" value={maxOpen} onChangeText={setMaxOpen} keyboardType="number-pad" /></View>
-        <View style={{ flex: 1 }}><Field label="Pause at DD % (0 off)" value={maxDd} onChangeText={setMaxDd} keyboardType="decimal-pad" /></View>
-      </Row>
-      <Field label="Symbols that differ (master=follower, …)" value={map} onChangeText={setMap} placeholder="GOLD=XAUUSDm" autoCapitalize="none" autoCorrect={false} />
-      <Row style={{ justifyContent: "space-between", marginBottom: 14 }}>
-        <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>Copy stop loss and take profit</Text>
-        <Switch value={sltp} onValueChange={setSltp} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
-      </Row>
-      <Button onPress={submit} busy={busy}>Save settings</Button>
-    </View>
-  )
-}
-
-function LinkCard({ l, eng, events, busy, patch, closeCopies, remove }: { l: CopyLink; eng: Engine; events: CopyEvent[]; busy: boolean; patch: (l: CopyLink, b: CopyPatch) => void; closeCopies: (l: CopyLink) => void; remove: (l: CopyLink) => void }) {
+function LinkCard({ l, eng, events, busy, patch, closeCopies, remove }: { l: CopyLink; eng: Engine; events: CopyEvent[]; busy: boolean; patch: (l: CopyLink, b: CopyPatch) => Promise<boolean>; closeCopies: (l: CopyLink) => void; remove: (l: CopyLink) => void }) {
   const [open, setOpen] = useState(false)
   const [history, setHistory] = useState(false)
   const s = stateOf(l, eng)
@@ -160,7 +115,7 @@ function LinkCard({ l, eng, events, busy, patch, closeCopies, remove }: { l: Cop
           {s.running ? <Pulse color={s.color} size={8} /> : <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color }} />}
           <Text style={{ color: s.color, fontSize: 13, fontWeight: "800" }}>{s.text}</Text>
         </Row>
-        <Switch value={l.enabled} disabled={busy} onValueChange={(v) => patch(l, { enabled: v })} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+        <Switch value={l.enabled} disabled={busy} onValueChange={(v) => void patch(l, { enabled: v })} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
       </Row>
 
       <Node role="Master" name={l.master} id={l.master_id} icon="radio-outline" color={colors.blue} />
@@ -168,10 +123,11 @@ function LinkCard({ l, eng, events, busy, patch, closeCopies, remove }: { l: Cop
         <View style={{ width: 2, height: 22, backgroundColor: `${s.color}88`, borderRadius: 1 }} />
         <Ionicons name="chevron-down" size={14} color={s.color} style={{ marginLeft: -8, marginTop: 14 }} />
         <View style={{ marginLeft: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 2 }}>
-          <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700" }}>{l.mode === "fixed" ? `${l.value} lot` : `× ${l.value}`} · max {l.max_lot}</Text>
+          <Text style={{ color: l.reverse ? colors.amber : colors.muted, fontSize: 11, fontWeight: "700" }}>{flowLabel(l)} · max {l.max_lot}</Text>
         </View>
       </Row>
       <Node role="Follower" name={l.follower} id={l.follower_id} icon="copy-outline" color={VIOLET} />
+      <Tags l={l} />
 
       {e ? (
         <Row style={{ gap: 8, marginTop: 12 }}>
@@ -196,7 +152,7 @@ function LinkCard({ l, eng, events, busy, patch, closeCopies, remove }: { l: Cop
         <Action icon="trash-outline" color={colors.red} disabled={busy} onPress={() => remove(l)} />
       </Row>
       {history ? <LinkActivity id={l.id} /> : null}
-      {open ? <Settings key={`${l.id}-${l.value}-${l.max_lot}-${l.max_open}`} l={l} busy={busy} save={(b) => patch(l, b)} /> : null}
+      {open ? <LinkSettings l={l} busy={busy} save={(b) => patch(l, b)} /> : null}
     </Card>
   )
 }
@@ -289,7 +245,7 @@ export default function Copy() {
   const [linksShown, setLinksShown] = useState(5)
   const [master, setMaster] = useState(0)
   const [followers, setFollowers] = useState<number[]>([])
-  const [mode, setMode] = useState<"multiplier" | "fixed">("multiplier")
+  const [mode, setMode] = useState<CopyLink["mode"]>("multiplier")
   const [value, setValue] = useState("1")
   const [maxLot, setMaxLot] = useState("0.01")
 
@@ -310,15 +266,17 @@ export default function Copy() {
   const failedAll = events.filter((x) => x.status === "failed").length
   const success = sent + failedAll ? `${Math.round((sent / (sent + failedAll)) * 100)}%` : "—"
 
-  const run = async (key: number | "new" | "halt", fn: () => Promise<{ sync?: { ok: boolean; problems: string[] }; ok?: boolean; error?: string; closed?: number } | void>) => {
+  const run = async (key: number | "new" | "halt", fn: () => Promise<{ sync?: { ok: boolean; problems: string[] }; ok?: boolean; error?: string; closed?: number } | void>): Promise<boolean> => {
     setBusy(key); setNote(null); setErr(null)
+    let ok = true
     try {
       const r = await fn()
       if (r && r.sync && !r.sync.ok) setNote(`Saved, but the engine did not get it: ${r.sync.problems.join(" ") || "no answer"}`)
-      else if (r && r.ok === false) setErr(r.error ?? "The engine did not accept that.")
+      else if (r && r.ok === false) { setErr(r.error ?? "The engine did not accept that."); ok = false }
       else if (r && typeof r.closed === "number") setNote(`Closed ${r.closed} cop${r.closed === 1 ? "y" : "ies"}.`)
       ov.refresh(); ev.refresh()
-    } catch (e) { setErr(e instanceof Error ? e.message : "That did not work.") } finally { setBusy(null) }
+    } catch (e) { setErr(e instanceof Error ? e.message : "That did not work."); ok = false } finally { setBusy(null) }
+    return ok
   }
   const sure = (title: string, text: string, label: string, go: () => void) => Alert.alert(title, text, [{ text: "Cancel", style: "cancel" }, { text: label, style: "destructive", onPress: go }])
 
@@ -394,9 +352,9 @@ export default function Copy() {
               <Strip>{choices.map((a) => <Selectable key={a.id} on={followers.includes(a.id)} onPress={() => setFollowers((f) => f.includes(a.id) ? f.filter((i) => i !== a.id) : [...f, a.id])}>{a.name} · #{a.id}</Selectable>)}</Strip>
 
               <Muted style={{ marginTop: 16, marginBottom: 8 }}>Size</Muted>
-              <Seg value={mode} onChange={setMode} />
+              <ModePick value={mode} onChange={setMode} />
               <Row style={{ gap: 10, marginTop: 12 }}>
-                <View style={{ flex: 1 }}><Field label={mode === "fixed" ? "Lot" : "Factor"} value={value} onChangeText={setValue} keyboardType="decimal-pad" /></View>
+                <View style={{ flex: 1 }}><Field label={modeOf(mode).value} value={value} onChangeText={setValue} keyboardType="decimal-pad" /></View>
                 <View style={{ flex: 1 }}><Field label="Max lot / order" value={maxLot} onChangeText={setMaxLot} keyboardType="decimal-pad" /></View>
               </Row>
               <Button disabled={!master || !followers.length} busy={busy === "new"} onPress={create}>{followers.length > 1 ? `Add ${followers.length} links` : "Add link"}</Button>
@@ -419,7 +377,7 @@ export default function Copy() {
               {part.map((l) => (
                 <LinkCard
                   key={l.id} l={l} eng={eng} events={events.filter((x) => x.link_id === l.id)} busy={busy === l.id}
-                  patch={(x, b) => void run(x.id, () => api.copyUpdate(x.id, b))}
+                  patch={(x, b) => run(x.id, () => api.copyUpdate(x.id, b))}
                   closeCopies={(x) => sure("Close copies?", `Close every copy ${x.master} → ${x.follower} opened on ${x.follower}? Trades you opened yourself there are not touched.`, "Close copies", () => void run(x.id, () => api.copyCloseCopies(x.id)))}
                   remove={(x) => sure("Remove this link?", "Copies it opened stay open on the follower; close them first if they should go.", "Remove", () => void run(x.id, () => api.copyDelete(x.id)))}
                 />
