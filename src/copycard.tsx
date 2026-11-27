@@ -16,7 +16,6 @@ export function CopyCard() {
   const eng = d.engine
   const on = d.links.filter((l) => l.enabled)
   const copies = d.links.reduce((n, l) => n + (l.engine?.copies ?? 0), 0)
-  const live = on.filter((l) => !l.dry_run).length
   const down = !eng.reachable || eng.halted
   const color = down ? colors.red : on.length ? colors.green : colors.muted
   const text = !eng.reachable ? "Engine not reachable" : eng.halted ? "All copying halted" : on.length ? "Copy trading running" : "No links switched on"
@@ -28,7 +27,7 @@ export function CopyCard() {
             <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${color}22`, alignItems: "center", justifyContent: "center" }}><Ionicons name="copy-outline" size={18} color={color} /></View>
             <View style={{ marginLeft: 12, flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>{text}</Text>
-              <Muted>{d.links.length ? `${on.length} of ${d.links.length} links on · ${copies} cop${copies === 1 ? "y" : "ies"} open${on.length ? (live ? ` · ${live} live` : " · dry run") : ""}` : "Tap to add your first link"}</Muted>
+              <Muted>{d.links.length ? `${on.length} of ${d.links.length} links on · ${copies} cop${copies === 1 ? "y" : "ies"} open` : "Tap to add your first link"}</Muted>
             </View>
           </Row>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />

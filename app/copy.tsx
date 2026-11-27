@@ -40,7 +40,7 @@ function stateOf(l: CopyLink, eng: Engine): { text: string; color: string; runni
   const s = l.engine?.state
   if (s === "login_refused") return { text: "Login refused", color: colors.red, running: false }
   if (s === "paused") return { text: "Paused: drawdown", color: colors.amber, running: false }
-  if (s === "running") return l.engine?.dry ? { text: "Running, dry run", color: colors.amber, running: true } : { text: "Running, live", color: colors.green, running: true }
+  if (s === "running") return l.engine?.dry ? { text: "Recording only", color: colors.amber, running: true } : { text: "Running, live", color: colors.green, running: true }
   return { text: "Connecting…", color: colors.muted, running: false }
 }
 
@@ -142,7 +142,7 @@ function Settings({ l, save, busy }: { l: CopyLink; save: (b: CopyPatch) => void
   )
 }
 
-function LinkCard({ l, eng, events, busy, patch, goLive, closeCopies, remove }: { l: CopyLink; eng: Engine; events: CopyEvent[]; busy: boolean; patch: (l: CopyLink, b: CopyPatch) => void; goLive: (l: CopyLink) => void; closeCopies: (l: CopyLink) => void; remove: (l: CopyLink) => void }) {
+function LinkCard({ l, eng, events, busy, patch, closeCopies, remove }: { l: CopyLink; eng: Engine; events: CopyEvent[]; busy: boolean; patch: (l: CopyLink, b: CopyPatch) => void; closeCopies: (l: CopyLink) => void; remove: (l: CopyLink) => void }) {
   const [open, setOpen] = useState(false)
   const [history, setHistory] = useState(false)
   const s = stateOf(l, eng)
@@ -159,7 +159,6 @@ function LinkCard({ l, eng, events, busy, patch, goLive, closeCopies, remove }: 
         <Row style={{ flex: 1, gap: 8, flexWrap: "wrap" }}>
           {s.running ? <Pulse color={s.color} size={8} /> : <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color }} />}
           <Text style={{ color: s.color, fontSize: 13, fontWeight: "800" }}>{s.text}</Text>
-          <Chip color={l.dry_run ? colors.amber : colors.red}>{l.dry_run ? "Dry run" : "Live orders"}</Chip>
         </Row>
         <Switch value={l.enabled} disabled={busy} onValueChange={(v) => patch(l, { enabled: v })} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
       </Row>
@@ -183,7 +182,7 @@ function LinkCard({ l, eng, events, busy, patch, goLive, closeCopies, remove }: 
       ) : null}
       {e?.detail ? <Text style={{ color: colors.amber, fontSize: 12, marginTop: 8 }}>{e.detail}</Text> : null}
       {last || today.length ? <Muted style={{ marginTop: 10 }}>{last ? `Last: ${verb(last)} ${last.symbol} · ${ago(last.at)}  ·  ` : ""}Today {done} done{failed ? `, ${failed} failed` : ""}</Muted> : null}
-      {!l.dry_run && l.enabled ? (
+      {l.enabled ? (
         <Row style={{ backgroundColor: `${colors.red}18`, borderRadius: radius.md, padding: 10, marginTop: 10, alignItems: "flex-start" }}>
           <Ionicons name="warning-outline" size={16} color={colors.red} style={{ marginRight: 8, marginTop: 1 }} />
           <Text style={{ flex: 1, color: colors.red, fontSize: 12 }}>This link places real orders on {l.follower}{eng.trade_enabled ? "." : ", but trading is off on the reader, so it only records."}</Text>
@@ -191,7 +190,6 @@ function LinkCard({ l, eng, events, busy, patch, goLive, closeCopies, remove }: 
       ) : null}
 
       <Row style={{ gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-        {l.dry_run ? <Action icon="flash-outline" label="Go live" color={colors.red} disabled={busy} onPress={() => goLive(l)} /> : <Action icon="flask-outline" label="Dry run" disabled={busy} onPress={() => patch(l, { dry_run: true })} />}
         <Action icon="options-outline" label="Settings" active={open} onPress={() => setOpen(!open)} />
         <Action icon="time-outline" label="History" active={history} onPress={() => setHistory(!history)} />
         <Action icon="close-circle-outline" label="Close copies" disabled={busy} onPress={() => closeCopies(l)} />
@@ -260,7 +258,7 @@ function LinkActivity({ id }: { id: number }) {
   return (
     <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
       <Label>This link's activity</Label>
-      {!ev.loaded ? <Loading /> : ev.data && ev.data.length ? <Timeline rows={ev.data} /> : <Muted>Nothing yet. When the master opens, changes or closes a trade, this link records what it copied (or, in a dry run, would have copied).</Muted>}
+      {!ev.loaded ? <Loading /> : ev.data && ev.data.length ? <Timeline rows={ev.data} /> : <Muted>Nothing yet. When the master opens, changes or closes a trade, this link records what it copied.</Muted>}
     </View>
   )
 }
@@ -275,7 +273,7 @@ function Activity({ events, links }: { events: CopyEvent[]; links: CopyLink[] })
     <Card>
       <Label>Activity</Label>
       <Strip>{FILTERS.map((f) => <Selectable key={f} on={filter === f} onPress={() => setFilter(f)}>{f[0].toUpperCase() + f.slice(1)} {counts[f] ?? 0}</Selectable>)}</Strip>
-      {rows.length === 0 ? <Muted style={{ marginTop: 12 }}>{events.length ? `No ${filter} rows.` : "When a master opens, changes or closes a trade, each link records here what it copied (or, in a dry run, would have copied)."}</Muted> : <Timeline key={filter} rows={rows} routes={routes} />}
+      {rows.length === 0 ? <Muted style={{ marginTop: 12 }}>{events.length ? `No ${filter} rows.` : "When a master opens, changes or closes a trade, each link records here what it copied."}</Muted> : <Timeline key={filter} rows={rows} routes={routes} />}
     </Card>
   )
 }
@@ -402,13 +400,13 @@ export default function Copy() {
                 <View style={{ flex: 1 }}><Field label="Max lot / order" value={maxLot} onChangeText={setMaxLot} keyboardType="decimal-pad" /></View>
               </Row>
               <Button disabled={!master || !followers.length} busy={busy === "new"} onPress={create}>{followers.length > 1 ? `Add ${followers.length} links` : "Add link"}</Button>
-              <Muted style={{ marginTop: 10 }}>A new link starts off and in dry run. Symbols are matched by name without the broker's suffix, so XAUUSDm on one broker finds XAUUSD or XAUUSDpro on another.</Muted>
+              <Muted style={{ marginTop: 10 }}>A new link starts off. Symbols are matched by name without the broker's suffix, so XAUUSDm on one broker finds XAUUSD or XAUUSDpro on another.</Muted>
             </View>
           )
         ) : null}
       </Card>
 
-      {ov.loaded && links.length === 0 ? <Empty title="No links yet" text="Tap New link, choose a master and followers. The first test is best on two demo accounts, in dry run." /> : null}
+      {ov.loaded && links.length === 0 ? <Empty title="No links yet" text="Tap New link, choose a master and followers. The first test is best on two demo accounts." /> : null}
       {eng ? (() => {
         let left = linksShown  // cards still allowed, counted across the groups
         return groups.map((g) => {
@@ -422,7 +420,6 @@ export default function Copy() {
                 <LinkCard
                   key={l.id} l={l} eng={eng} events={events.filter((x) => x.link_id === l.id)} busy={busy === l.id}
                   patch={(x, b) => void run(x.id, () => api.copyUpdate(x.id, b))}
-                  goLive={(x) => sure("Send real orders?", `Every trade ${x.master} opens will be placed on ${x.follower}.`, "Go live", () => void run(x.id, () => api.copyUpdate(x.id, { dry_run: false, confirm_live: true })))}
                   closeCopies={(x) => sure("Close copies?", `Close every copy ${x.master} → ${x.follower} opened on ${x.follower}? Trades you opened yourself there are not touched.`, "Close copies", () => void run(x.id, () => api.copyCloseCopies(x.id)))}
                   remove={(x) => sure("Remove this link?", "Copies it opened stay open on the follower; close them first if they should go.", "Remove", () => void run(x.id, () => api.copyDelete(x.id)))}
                 />
