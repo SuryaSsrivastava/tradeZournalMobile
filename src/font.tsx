@@ -15,9 +15,10 @@ export const SORA = {
 /** True once every weight is ready; until then text is in the system font. */
 export const useSora = () => useFonts(SORA)[0]
 
+// Sora is a wide, heavy face, so each weight asked for is met with the one a step lighter (a "800" is Bold, a "700" is SemiBold): at the web's own weights it looked too bold on a phone
 const family = (w: unknown) => {
   const n = w === "bold" ? 700 : w === "normal" || w == null ? 400 : Number(w)
-  return n <= 300 ? "Sora-Light" : n < 500 ? "Sora-Regular" : n < 600 ? "Sora-Medium" : n < 700 ? "Sora-SemiBold" : n < 800 ? "Sora-Bold" : "Sora-ExtraBold"
+  return n <= 300 ? "Sora-Light" : n < 600 ? "Sora-Regular" : n < 700 ? "Sora-Medium" : n < 800 ? "Sora-SemiBold" : "Sora-Bold"
 }
 
 /** The style with Sora in the weight it asks for (a style that names its own family is left alone). The weight is removed: the file already is that weight, and a weight on a custom font only makes Android fake it. */
