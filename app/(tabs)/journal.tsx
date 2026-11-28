@@ -19,6 +19,7 @@ import { inMode, inScope, ScopeBar, useScope } from "../../src/scope"
 import { colors, radius, themed } from "../../src/theme"
 import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 import { usePrivacy } from "../../src/privacy"
+import { EarlyExits, PathInsights } from "../../src/paths"
 
 const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
 const usd = (n: number) => money(n, "USD", true)
@@ -234,6 +235,9 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
             <Label>By hour you opened the trade</Label>
             <Columns data={byHour(t).map((d) => ({ label: d.label, value: d.pnl }))} format={usd} height={110} labelEvery={3} />
           </Card>
+
+          <PathInsights trades={t} delay={420} />
+          <EarlyExits trades={t} delay={430} />
 
           {sessions.length > 0 ? <Card delay={440}><Label>Sessions</Label><RankBars rows={rows(sessions)} format={usd} /></Card> : null}
           {sides.length > 1 ? <Card delay={480}><Label>Long and short</Label><RankBars rows={rows(sides)} format={usd} /></Card> : null}

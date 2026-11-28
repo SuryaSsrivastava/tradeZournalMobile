@@ -12,6 +12,7 @@ import { ShareSheet, type CardData } from "../../src/sharecard"
 import { TradeShots } from "../../src/shots"
 import { Button, Card, ErrorNote, Field, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
 import { usePrivacy } from "../../src/privacy"
+import { TradePath } from "../../src/paths"
 
 export default function TradeDetail() {
   usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
@@ -85,6 +86,8 @@ export default function TradeDetail() {
           {t.target != null ? <Stat label="Target">{price(t.target)}</Stat> : null}
         </View>
       </Card>
+
+      <TradePath t={t} />
 
       <TradeShots tradeId={t.id} />
 

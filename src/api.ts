@@ -55,6 +55,11 @@ export type JournalTrade = {
   id: number; symbol: string; broker_symbol?: string; side: "Long" | "Short"; setup: string; entry: number; exit: number; qty: number; risk: number; opened_at: string; exit_at: string | null
   emotions: string[]; tags: string[]; rating: number; note: string; source: string; broker: string; fees: number; pnl: number | null
   stop: number | null; target: number | null; followed_plan: boolean | null; account_id: number | null; manual: boolean; demo?: boolean
+  /** The path of the trade, from price bars of `path_source` size: how far the price went against it (mae) and for it (mfe) while open, in price, in R (when it has a stop) and in money; what the day after the close could have given or taken back; what holding on 1, 4 and 24 hours more would have added; and how it ended. */
+  mae?: number | null; mfe?: number | null; mae_r?: number | null; mfe_r?: number | null; mae_usd?: number | null; mfe_usd?: number | null
+  after_best_usd?: number | null; after_worst_usd?: number | null; after_best?: number | null; after_worst?: number | null
+  hold_1h_usd?: number | null; hold_4h_usd?: number | null; hold_24h_usd?: number | null
+  exit_reason?: "sl" | "tp" | "stopout" | "manual" | null; path_source?: string | null
 }
 export type NewTrade = { symbol: string; side: "Long" | "Short"; entry: number; exit: number; qty: number; risk: number; setup?: string; rating?: number; note?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
 export type TradeEdit = { note?: string; rating?: number; setup?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
