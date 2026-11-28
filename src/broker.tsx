@@ -1,6 +1,7 @@
+import { ActivityIndicator } from "./brand"
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native"
+import { Modal, Pressable, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { WebView, type WebViewNavigation } from "react-native-webview"
 import { api, apiOrigin, apiServer, authHeader, type BrokerInfo } from "./api"

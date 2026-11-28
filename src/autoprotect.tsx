@@ -1,6 +1,7 @@
+import { ActivityIndicator } from "./brand"
 import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react"
-import { ActivityIndicator, Switch, Text, TextInput, View } from "react-native"
+import { Switch, Text, TextInput, View } from "react-native"
 import { api, type Account, type AutoProtect } from "./api"
 import { colors, currentScheme, radius } from "./theme"
 import { Card, Muted, Pill, Row } from "./ui"

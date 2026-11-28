@@ -1,6 +1,7 @@
+import { ActivityIndicator } from "./brand"
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, View } from "react-native"
+import { Image, Modal, Pressable, ScrollView, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "./api"
 import { colors, radius } from "./theme"

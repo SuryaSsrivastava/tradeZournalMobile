@@ -1,6 +1,7 @@
+import { ActivityIndicator } from "./brand"
 import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react"
-import { ActivityIndicator, Pressable, Text, View } from "react-native"
+import { Pressable, Text, View } from "react-native"
 import { api, type LivePosition } from "./api"
 import { colors, currentScheme } from "./theme"
 import { Muted, Row } from "./ui"

@@ -1,6 +1,7 @@
+import { ActivityIndicator } from "../src/brand"
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { apiServer, resendCode, saveServer, validServer, type CodeChallenge } from "../src/api"
 import { useAuth } from "../src/auth"

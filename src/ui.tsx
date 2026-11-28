@@ -1,4 +1,5 @@
-import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native"
+import { ActivityIndicator, BrandMark, BrandWord } from "./brand"
+import { Animated, Image, KeyboardAvoidingView, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRef, type MutableRefObject, type ReactNode } from "react"
 import { Ambient, Glass, Rise, Skeleton } from "./fx"
@@ -28,11 +29,10 @@ export function Screen({ children, refreshing, onRefresh, scroll = true, padTop 
 /** The TradeZournal symbol and wordmark. `size` is the height of the symbol; `mark` shows the symbol alone. */
 export function Brand({ size = 34, mark = false, on }: { size?: number; mark?: boolean; on?: "dark" | "light" }) {  // `on`: the kind of background it sits on, when that is not the theme (a picture to share is always dark)
   const light = (on ?? currentScheme()) === "light"
-  const h = Math.round(size * 0.46)
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <Image source={light ? require("../assets/logo-mark-clear-light.png") : require("../assets/logo-mark-clear.png")} style={{ width: size, height: size }} />
-      {mark ? null : <Image source={light ? require("../assets/logo-wordmark-light.png") : require("../assets/logo-wordmark.png")} resizeMode="contain" style={{ width: h * 8.56, height: h, marginLeft: size * 0.16 }} />}
+      <BrandMark size={size} />
+      {mark ? null : <View style={{ marginLeft: size * 0.24 }}><BrandWord size={Math.round(size * 0.58)} color={light ? "#0f172a" : colors.text} /></View>}
     </View>
   )
 }

@@ -1,4 +1,5 @@
-import { ActivityIndicator, View } from "react-native"
+import { ActivityIndicator } from "../../src/brand"
+import { View } from "react-native"
 import { colors } from "../../src/theme"
 
 /**

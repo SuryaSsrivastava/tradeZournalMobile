@@ -1,6 +1,7 @@
+import { ActivityIndicator } from "./brand"
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator, Animated, Easing, Pressable, Text, View } from "react-native"
+import { Animated, Easing, Pressable, Text, View } from "react-native"
 import Svg, { Defs, Line, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg"
 import type { LivePosition } from "./api"
 import { Pulse, useReducedMotion } from "./fx"
