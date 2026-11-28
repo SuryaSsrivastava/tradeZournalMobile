@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect, useRef, useState, type ComponentRef } from "react"
@@ -17,14 +18,14 @@ import { showToast } from "../../src/toast"
 import { success } from "../../src/delight"
 import { inMode, inScope, ScopeBar, useScope } from "../../src/scope"
 import { colors, radius, themed } from "../../src/theme"
-import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, Title, tone } from "../../src/ui"
+import { Button, Card, Empty, ErrorNote, Label, Loading, Muted, Pill, Row, Screen, tone } from "../../src/ui"
 import { usePrivacy } from "../../src/privacy"
 import { EarlyExits, PathInsights } from "../../src/paths"
 
 const sgn = (n: number, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`
 const usd = (n: number) => money(n, "USD", true)
 type Tab = "overview" | "trades" | "calendar"
-const TABS: [Tab, string, React.ComponentProps<typeof Ionicons>["name"]][] = [["overview", "Overview", "stats-chart"], ["trades", "Trades", "list"], ["calendar", "Calendar", "calendar"]]
+const TABS: [Tab, string, React.ComponentProps<typeof Ionicons>["name"], string][] = [["overview", "Overview", "stats-chart", "#22d38a"], ["trades", "Trades", "list", "#60a5fa"], ["calendar", "Calendar", "calendar", "#fbbf24"]]
 const RANGES: [string, number][] = [["7D", 7], ["30D", 30], ["90D", 90], ["All", 0]]
 type Filter = "all" | "wins" | "losses" | "long" | "short"
 const FILTERS: [Filter, string][] = [["all", "All"], ["wins", "Wins"], ["losses", "Losses"], ["long", "Long"], ["short", "Short"]]
@@ -66,7 +67,25 @@ export default function Journal() {
   ])
   return (
     <Screen scrollTo={jump} refreshing={trades.refreshing} onRefresh={() => { void Promise.all([sync(true).catch(() => null), trades.refresh(), counts.refresh()]).then(() => showToast("Journal is up to date")) }}>
-      <Title brand sub={`${all.length} trade${all.length === 1 ? "" : "s"}`} right={<Press onPress={() => router.push("/trade/new")}><View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.green, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 }}><Ionicons name="add" size={18} color="#04110b" /><Text style={{ color: "#04110b", fontWeight: "800", fontSize: 13 }}>Log trade</Text></View></Press>}>Journal</Title>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <LinearGradient colors={["#34d399", "#22d3ee"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="book" size={22} color="#04241a" />
+        </LinearGradient>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.text, fontSize: 22, fontWeight: "700", letterSpacing: -0.5 }}>Journal</Text>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>Log and review every trade</Text>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700", letterSpacing: -0.4 }}>{all.length}</Text>
+          <Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.2 }}>TRADES</Text>
+        </View>
+      </View>
+      <Press onPress={() => router.push("/trade/new")}>
+        <LinearGradient colors={["#34d399", "#22c1a0"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: radius.md, paddingVertical: 12, marginBottom: 14 }}>
+          <Ionicons name="add-circle" size={20} color="#04110b" />
+          <Text style={{ color: "#04110b", fontWeight: "700", fontSize: 14 }}>Log a trade</Text>
+        </LinearGradient>
+      </Press>
       <ScopeBar trades={every} accounts={accounts.data?.accounts ?? []} />
       {trades.error ? <ErrorNote>{trades.error}</ErrorNote> : null}
 
@@ -103,12 +122,12 @@ export default function Journal() {
 function Segmented({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   return (
     <View style={{ flexDirection: "row", backgroundColor: colors.card, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, padding: 4, marginBottom: 14 }}>
-      {TABS.map(([k, l, icon]) => {
+      {TABS.map(([k, l, icon, c]) => {
         const on = tab === k
         return (
-          <Pressable key={k} onPress={() => onChange(k)} style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: on ? `${colors.green}26` : "transparent", borderWidth: 1, borderColor: on ? `${colors.green}66` : "transparent" }}>
-            <Ionicons name={icon} size={15} color={on ? colors.green : colors.muted} />
-            <Text style={{ color: on ? colors.text : colors.muted, fontSize: 13, fontWeight: on ? "800" : "600" }}>{l}</Text>
+          <Pressable key={k} onPress={() => onChange(k)} style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: on ? colors.cardHi : "transparent", borderWidth: 1, borderColor: on ? colors.border : "transparent" }}>
+            <View style={{ width: 22, height: 22, borderRadius: 7, backgroundColor: `${c}${on ? "33" : "1a"}`, alignItems: "center", justifyContent: "center" }}><Ionicons name={icon} size={13} color={c} /></View>
+            <Text style={{ color: on ? colors.text : colors.muted, fontSize: 12.5, fontWeight: on ? "700" : "600" }}>{l}</Text>
           </Pressable>
         )
       })}
