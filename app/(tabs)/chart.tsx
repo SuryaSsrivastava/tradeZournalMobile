@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { useLocalSearchParams } from "expo-router"
 import { useEffect, useMemo, useState } from "react"
 import { Alert, Pressable, ScrollView, Text, View } from "react-native"
-import { api, type Account, type LivePosition } from "../../src/api"
+import { api, type Account } from "../../src/api"
 import { useAuth } from "../../src/auth"
 import { CandleChart, HOME, type ChartLine, type View2 } from "../../src/candlechart"
 import { FAST, TIMEFRAMES, useCandles, type Frame } from "../../src/candles"
@@ -19,7 +19,7 @@ const AMBER = "#f5b53d"
 const canon = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "")
 const round = (p: number, ref: number) => Number(p.toFixed(ref >= 1000 ? 2 : ref >= 10 ? 3 : 5))
 
-/** A market's chart: candles that move with the live price, your price alerts and your open trades drawn on it. A tap places an alert; the ✕ on a line removes the alert or closes the trade. */
+/** A market's chart: candles that move with the live price, your price alerts and your open trades drawn on it. A tap places an alert; the ✕ on an alert line removes it. */
 export default function Chart() {
   usePrivacy()
   const { symbol: want } = useLocalSearchParams<{ symbol?: string }>()
@@ -58,7 +58,7 @@ export default function Chart() {
   }
 
   const waiting = (alerts.data?.items ?? []).filter((a) => !a.triggered_at && a.symbol === symbol)
-  const trades = (live.data ?? []).flatMap((r) => (r && r.v.state === "live" ? (r.v.positions ?? []).filter((p) => canon(p.symbol).startsWith(symbol)).map((p) => ({ a: r.a, p, cur: r.v.currency ?? "USD", can: !!user?.is_admin && r.a.kind === "metaapi" })) : []))
+  const trades = (live.data ?? []).flatMap((r) => (r && r.v.state === "live" ? (r.v.positions ?? []).filter((p) => canon(p.symbol).startsWith(symbol)).map((p) => ({ p, cur: r.v.currency ?? "USD" })) : []))
 
   const removeAlert = (id: number, text: string) => Alert.alert("Remove this alert?", text, [
     { text: "Keep", style: "cancel" },
@@ -83,14 +83,6 @@ export default function Chart() {
       } },
     ])
   }
-  const closeTrade = (a: Account, p: LivePosition) => Alert.alert(`Close this ${p.symbol} ${p.side.toLowerCase()} now?`, `${p.volume ?? ""} lots are closed at the current market price.`, [
-    { text: "Cancel", style: "cancel" },
-    { text: "Close position", style: "destructive", onPress: async () => {
-      setBusy(`p${p.id}`); setNote(null)
-      try { await api.closePosition(a.id, p.id); setNote({ ok: true, text: `${p.symbol} closed.` }); await live.refresh() } catch (e) { setNote({ ok: false, text: `${p.symbol}: ${e instanceof Error ? e.message : "could not close it"}` }) }
-      setBusy(null)
-    } },
-  ])
   const addAlert = async () => {
     if (draft === null || last === null) return
     setBusy("draft"); setNote(null)
@@ -103,9 +95,9 @@ export default function Chart() {
 
   const lines: ChartLine[] = [
     ...waiting.map((a) => { const at = moving?.id === a.id ? moving.price : a.price; return { id: `a${a.id}`, price: at, color: AMBER, dashed: true, label: `${at > (last ?? at) ? "▲" : "▼"} ${price(at)}`, cross: () => removeAlert(a.id, `${a.direction === "above" ? "Goes above" : "Drops below"} ${price(a.price)}`), busy: busy === `a${a.id}`, onDrag: (p: number) => { if (last !== null) setMoving({ id: a.id, price: round(p, last) }) }, onDrop: (p: number) => { if (last !== null) moveAlert(a, round(p, last)) } } }),
-    ...trades.flatMap(({ a, p, cur, can }): ChartLine[] => {
+    ...trades.flatMap(({ p, cur }): ChartLine[] => {
       const out: ChartLine[] = []
-      if (p.open_price) out.push({ id: `p${p.id}`, price: p.open_price, color: p.profit >= 0 ? colors.green : colors.red, dashed: true, label: `${p.side === "Long" ? "BUY" : "SELL"} ${p.volume ?? ""} @ ${price(p.open_price)} · ${money(p.profit, cur, true)}`, cross: can ? () => closeTrade(a, p) : undefined, busy: busy === `p${p.id}` })
+      if (p.open_price) out.push({ id: `p${p.id}`, price: p.open_price, color: p.profit >= 0 ? colors.green : colors.red, dashed: true, label: `${p.side === "Long" ? "BUY" : "SELL"} ${p.volume ?? ""} @ ${price(p.open_price)} · ${money(p.profit, cur, true)}` })
       if (p.stop) out.push({ id: `s${p.id}`, price: p.stop, color: colors.red, dashed: true, label: `SL ${price(p.stop)}` })
       if (p.target) out.push({ id: `t${p.id}`, price: p.target, color: colors.green, dashed: true, label: `TP ${price(p.target)}` })
       return out
@@ -168,13 +160,10 @@ export default function Chart() {
                 <Pressable onPress={() => removeAlert(a.id, alertText(a.direction, a.price))} hitSlop={8} accessibilityLabel="Remove alert"><Ionicons name="close-circle-outline" size={21} color={colors.red} /></Pressable>
               </Row>
             ))}
-            {trades.map(({ a, p, cur, can }) => (
+            {trades.map(({ p, cur }) => (
               <Row key={p.id} style={{ justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: `${colors.border}99` }}>
                 <Text style={{ color: colors.text, fontSize: 13.5 }}>{p.side === "Long" ? "Buy" : "Sell"} {p.volume ?? ""} @ {price(p.open_price)}</Text>
-                <Row style={{ gap: 10 }}>
-                  <Text style={{ color: p.profit >= 0 ? colors.green : colors.red, fontWeight: "800", fontSize: 13.5 }}>{money(p.profit, cur, true)}</Text>
-                  {can ? <Pressable onPress={() => closeTrade(a, p)} disabled={busy === `p${p.id}`} hitSlop={8} accessibilityLabel="Close this trade"><Ionicons name="close-circle-outline" size={21} color={colors.red} /></Pressable> : null}
-                </Row>
+                <Text style={{ color: p.profit >= 0 ? colors.green : colors.red, fontWeight: "800", fontSize: 13.5 }}>{money(p.profit, cur, true)}</Text>
               </Row>
             ))}
             {waiting.length + trades.length === 0 ? <Muted style={{ padding: 12 }}>Tap the chart to place your first alert.</Muted> : null}

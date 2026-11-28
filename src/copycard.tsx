@@ -18,7 +18,7 @@ export function CopyCard() {
   const copies = d.links.reduce((n, l) => n + (l.engine?.copies ?? 0), 0)
   const down = !eng.reachable || eng.halted
   const color = down ? colors.red : on.length ? colors.green : colors.muted
-  const text = !eng.reachable ? "Engine not reachable" : eng.halted ? "All copying halted" : on.length ? "Copy trading running" : "No links switched on"
+  const text = !eng.reachable ? "Engine not reachable" : eng.halted ? "Copying paused by TradeZournal" : on.length ? "Copy trading running" : "No links switched on"
   return (
     <Press onPress={() => router.push("/copy")}>
       <Card style={down ? { borderColor: `${colors.red}88` } : undefined}>

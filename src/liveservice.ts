@@ -22,7 +22,6 @@ if (process.env.EXPO_PUBLIC_LIVE_NOTIFICATION === "1" && Platform.OS === "androi
 const CHANNEL = "live-trades"
 const ENABLED = "tz.livenotif"
 const ACCOUNTS = "tz.livenotif.accounts"
-const CAN_CLOSE = "tz.livenotif.canclose"
 const HIDDEN = "tz.livenotif.hidden"  // the member pressed the cross: stay hidden until the open trades are over
 const POLL_MS = 10_000
 const QUIET_POLLS = 3  // this many looks in a row with nothing open ends the service
@@ -50,15 +49,14 @@ export async function setLiveNotificationEnabled(on: boolean): Promise<{ ok: boo
   return { ok: true, message: on ? "On. When a trade is open, it shows in your notification bar." : "Off." }
 }
 
-/** Remember which accounts to watch and who may close, then start the service unless it is already showing. Called while the app is open and a trade is open. */
-export async function startLiveNotification(accountId: number, canClose: boolean): Promise<void> {
+/** Remember which accounts to watch, then start the service unless it is already showing. Called while the app is open and a trade is open. */
+export async function startLiveNotification(accountId: number): Promise<void> {
   if (!N || !(await liveNotificationEnabled())) return
   if ((await SecureStore.getItemAsync(HIDDEN).catch(() => null)) === "1") return  // they hid it for this trade
   try {
     const ids = new Set<number>(JSON.parse((await SecureStore.getItemAsync(ACCOUNTS)) ?? "[]"))
     ids.add(accountId)
     await SecureStore.setItemAsync(ACCOUNTS, JSON.stringify([...ids]))
-    await SecureStore.setItemAsync(CAN_CLOSE, canClose ? "1" : "0")
     if (stopNow) return  // already running in this process
     const shown = await N.default.getDisplayedNotifications()
     if (shown.some((n) => n.id === CHANNEL)) return  // running (it was started earlier and this screen came back)
@@ -93,7 +91,6 @@ async function show(since: number | null, open: LivePosition[], currency: string
   const one = open.length === 1 ? open[0] : null
   const sym = currency && currency !== "USD" ? `${currency} ` : "$"
   const money = (n: number) => (amountsHidden() ? "••••" : `${n >= 0 ? "+" : "-"}${sym}${Math.abs(n).toFixed(2)}`)
-  const canClose = (await SecureStore.getItemAsync(CAN_CLOSE).catch(() => "0")) === "1"
   await notifee.displayNotification({
     id: CHANNEL,
     title: open.length === 0 ? "Live trades" : `Live trades · ${money(total)}`,
@@ -109,10 +106,7 @@ async function show(since: number | null, open: LivePosition[], currency: string
       ...(since ? { showTimestamp: true, timestamp: since, showChronometer: true, chronometerDirection: "up" as const } : {}),
       ...(open.length > 1 ? { style: { type: AndroidStyle.INBOX, lines: open.slice(0, 6).map((p) => `${p.side.toUpperCase()} ${p.symbol} · ${money(p.profit)}`) } } : {}),
       pressAction: { id: "open", launchActivity: "default" },
-      actions: open.length > 0 ? [
-        { title: "✕  Hide", pressAction: { id: "hide" } },
-        ...(canClose ? [{ title: "Close trade…", pressAction: { id: "review", launchActivity: "default" } }] : []),
-      ] : [],
+      actions: open.length > 0 ? [{ title: "✕  Hide", pressAction: { id: "hide" } }] : [],
     },
   })
 }

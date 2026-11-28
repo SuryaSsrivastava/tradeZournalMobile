@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useState, type ComponentProps, type ReactNode } from "react"
 import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native"
-import { api, type CopyEvent, type CopyLink, type CopyPatch } from "../src/api"
+import { api, type CopyEvent, type CopyLink, type CopyOverview, type CopyPatch } from "../src/api"
 import { useAuth } from "../src/auth"
 import { Pulse } from "../src/fx"
 import { ago } from "../src/format"
@@ -10,7 +10,7 @@ import { LinkSettings, ModePick, Tags, flowLabel, modeOf } from "../src/copysett
 import { colors, radius } from "../src/theme"
 import { Button, Card, Empty, ErrorNote, Field, Label, Loading, Muted, Row, Screen } from "../src/ui"
 
-type Engine = { reachable: boolean; error: string; trade_enabled: boolean; halted: boolean }
+type Engine = CopyOverview["engine"]
 type IconName = ComponentProps<typeof Ionicons>["name"]
 
 const VIOLET = "#a78bfa"
@@ -37,11 +37,11 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-d
 function stateOf(l: CopyLink, eng: Engine): { text: string; color: string; running: boolean } {
   if (!l.enabled) return { text: "Off", color: colors.muted, running: false }
   if (!eng.reachable) return { text: "Engine unreachable", color: colors.red, running: false }
-  if (eng.halted) return { text: "Halted", color: colors.red, running: false }
+  if (eng.halted) return { text: "Paused by TradeZournal", color: colors.red, running: false }
   const s = l.engine?.state
   if (s === "login_refused") return { text: "Login refused", color: colors.red, running: false }
   if (s === "paused") return { text: /loss limit/i.test(l.engine?.detail ?? "") ? "Paused: loss limit" : "Paused: drawdown", color: colors.amber, running: false }
-  if (s === "running") return l.engine?.dry ? { text: "Recording only", color: colors.amber, running: true } : { text: "Running, live", color: colors.green, running: true }
+  if (s === "running") return { text: "Running, live", color: colors.green, running: true }
   return { text: "Connecting…", color: colors.muted, running: false }
 }
 
@@ -266,7 +266,7 @@ export default function Copy() {
   const failedAll = events.filter((x) => x.status === "failed").length
   const success = sent + failedAll ? `${Math.round((sent / (sent + failedAll)) * 100)}%` : "—"
 
-  const run = async (key: number | "new" | "halt", fn: () => Promise<{ sync?: { ok: boolean; problems: string[] }; ok?: boolean; error?: string; closed?: number } | void>): Promise<boolean> => {
+  const run = async (key: number | "new" | "halt", fn: () => Promise<{ sync?: { ok: boolean; problems: string[] }; ok?: boolean; error?: string; closed?: number; stopped?: number } | void>): Promise<boolean> => {
     setBusy(key); setNote(null); setErr(null)
     let ok = true
     try {
@@ -274,6 +274,7 @@ export default function Copy() {
       if (r && r.sync && !r.sync.ok) setNote(`Saved, but the engine did not get it: ${r.sync.problems.join(" ") || "no answer"}`)
       else if (r && r.ok === false) { setErr(r.error ?? "The engine did not accept that."); ok = false }
       else if (r && typeof r.closed === "number") setNote(`Closed ${r.closed} cop${r.closed === 1 ? "y" : "ies"}.`)
+      else if (r && typeof r.stopped === "number") setNote(`Switched off ${r.stopped} link${r.stopped === 1 ? "" : "s"}. Switch them back on one by one.`)
       ov.refresh(); ev.refresh()
     } catch (e) { setErr(e instanceof Error ? e.message : "That did not work."); ok = false } finally { setBusy(null) }
     return ok
@@ -314,13 +315,15 @@ export default function Copy() {
             <Row>
               {eng.reachable && !eng.halted ? <Pulse color={colors.green} size={10} /> : <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.red }} />}
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>{!eng.reachable ? "Copy engine not reachable" : eng.halted ? "All copying halted" : "Copy engine running"}</Text>
+                <Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>{!eng.reachable ? "Copy engine not reachable" : eng.halted ? "Copying paused" : "Copy engine running"}</Text>
                 <Muted style={{ marginTop: 2 }}>{!eng.reachable ? eng.error || "Check the MT5 service." : eng.trade_enabled ? "Trading is on: a live link sends real orders." : "Trading is off on the reader: links only record."}</Muted>
               </View>
               <Chip color={eng.trade_enabled ? colors.red : colors.amber}>{eng.trade_enabled ? "Trading ON" : "Trading off"}</Chip>
             </Row>
+            {eng.halted ? <Muted style={{ marginTop: 10, color: colors.red }}>Copying is paused for everyone by TradeZournal.</Muted> : null}
+            {data?.plan ? <Muted style={{ marginTop: 10 }}>{data.plan.max_links === null ? "No limit for admins." : `Your plan allows ${data.plan.max_links} copy link${data.plan.max_links === 1 ? "" : "s"}. You have ${data.plan.used}.`}</Muted> : null}
             <View style={{ marginTop: 12 }}>
-              <Button tone={eng.halted ? "primary" : "danger"} disabled={!eng.reachable} busy={busy === "halt"} onPress={() => eng.halted ? void run("halt", () => api.copyHalt(false)) : sure("Stop all copying?", "Every link stops copying until you resume.", "Stop all", () => void run("halt", () => api.copyHalt(true)))}>{eng.halted ? "Resume copying" : "Stop all copying"}</Button>
+              <Button tone="danger" disabled={!links.some((l) => l.enabled)} busy={busy === "halt"} onPress={() => sure("Stop all my copying?", "Every one of your links is switched off. Open positions are left as they are. Switch links back on one by one.", "Stop all", () => void run("halt", () => api.copyHalt(true)))}>Stop all my copying</Button>
             </View>
           </Card>
         </>

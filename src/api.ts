@@ -37,7 +37,7 @@ export type PropRules = { daily_loss_pct?: number; max_dd_pct?: number; trailing
 /** A MetaTrader account. The server calls this kind "mt5" now; "metaapi" is what it was called, and what an older copy of the data may still say. */
 export const isMt5 = (a: { kind: string }) => a.kind === "mt5" || a.kind === "metaapi"
 
-export type NewAccount = { name: string; kind: "manual" | "metaapi"; starting_balance: number; is_prop: boolean; is_demo?: boolean; rules?: PropRules; broker?: "mt5"; login?: string; mt_password?: string; server?: string; platform?: "mt4" | "mt5" }
+export type NewAccount = { name: string; kind: "manual" | "mt5"; starting_balance: number; is_prop: boolean; is_demo?: boolean; rules?: PropRules; broker?: "mt5"; login?: string; mt_password?: string; server?: string; platform?: "mt4" | "mt5" }
 export type PlanInfo = { label: string; tagline: string; strategies: number | null; explanations: number | null; coach_reviews: number | null; forward_tests: number | null; replay_sessions: number | null; ai_requests: number | null; connected_accounts: number | null; replay_screenshots: boolean; live_positions: boolean; premium_models: boolean; support: string }
 export type Pricing = { currency: "USD" | "INR"; tiers: Record<string, { monthly: number; yearly: number; list: number }>; offer: { label: string; ends_at: string | null } | null }
 export type SubscriptionInfo = { id: number; plan: string; period: "monthly" | "yearly"; currency: string; amount: number; status: string; next_charge_at: string | null; access_until: string | null; cancel_requested: boolean; failed_count: number; last_error: string; last_payment_at: string | null }
@@ -63,10 +63,10 @@ export type JournalTrade = {
 }
 export type NewTrade = { symbol: string; side: "Long" | "Short"; entry: number; exit: number; qty: number; risk: number; setup?: string; rating?: number; note?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
 export type TradeEdit = { note?: string; rating?: number; setup?: string; emotions?: string[]; tags?: string[]; followed_plan?: boolean | null }
-export type CopyEngine = { id: number; state: string; detail: string; dry: boolean; master_open: number; copies: number; last_cycle_at: string }
+export type CopyEngine = { id: number; state: string; detail: string; master_open: number; copies: number; last_cycle_at: string }
 export type CopyLink = { id: number; master_id: number; master: string; follower_id: number; follower: string; enabled: boolean; mode: "multiplier" | "fixed" | "balance" | "risk_pct"; value: number; max_lot: number; copy_sltp: boolean; symbol_map: Record<string, string>; max_age_seconds: number; max_slip_points: number; max_open: number; max_dd_pct: number; direction: "" | "both" | "buy" | "sell"; reverse: boolean; days: number[]; from_minute: number; to_minute: number; max_spread_points: number; symbols_allow: string[]; symbols_block: string[]; copy_pending: boolean; max_daily_loss_pct: number; max_total_loss_pct: number; on_limit: "" | "pause" | "close"; reset_hour: number; engine: CopyEngine | null; sync?: { ok: boolean; problems: string[] } }
 export type CopyEvent = { id: number; link_id: number; at: string; action: string; symbol: string; side: string; master_ticket: number; volume: number; status: string; detail: string }
-export type CopyOverview = { links: CopyLink[]; accounts: { id: number; name: string; user_id: number }[]; engine: { reachable: boolean; error: string; trade_enabled: boolean; halted: boolean } }
+export type CopyOverview = { links: CopyLink[]; accounts: { id: number; name: string; user_id: number }[]; plan: { max_links: number | null; used: number }; engine: { reachable: boolean; error: string; trade_enabled: boolean; halted: boolean } }
 export type CopyPatch = Partial<Pick<CopyLink, "enabled" | "mode" | "value" | "max_lot" | "copy_sltp" | "symbol_map" | "max_age_seconds" | "max_slip_points" | "max_open" | "max_dd_pct" | "direction" | "reverse" | "days" | "from_minute" | "to_minute" | "max_spread_points" | "symbols_allow" | "symbols_block" | "copy_pending" | "max_daily_loss_pct" | "max_total_loss_pct" | "on_limit" | "reset_hour">>
 export type Market = "nse" | "us" | "crypto" | "forex"
 export type ScreenRow = { symbol: string; name: string; sector: string; market: string; price?: number | null; chg_1d?: number | null; ret_1y?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null; div_yield?: number | null; volume_24h?: number | null; [k: string]: unknown }
@@ -254,7 +254,6 @@ export const api = {
   moveStop: (accountId: number, positionId: string, b: { mode: "breakeven" | "lock_pct" | "price"; pct?: number; offset?: number; price?: number }) =>
     request<{ ok: boolean; stop: number; previous: number | null; symbol: string; followers: number }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/stop`, { method: "POST", body: JSON.stringify(b) }),
   setAutoProtect: (accountId: number, b: AutoProtect) => request<{ auto_protect: AutoProtect }>(`/accounts/${accountId}/auto-protect`, { method: "PUT", body: JSON.stringify(b) }),
-  closePosition: (accountId: number, positionId: string) => request<{ closed: boolean }>(`/accounts/${accountId}/positions/${encodeURIComponent(positionId)}/close`, { method: "POST" }),
   /** Read an account's new trades from MetaTrader now. `auto` is the app doing it by itself on opening the account: the same sync, without the "your trades are in" notice. */
   syncAccount: (id: number, auto = false) => request<{ added: number; error: string | null; connecting?: boolean; skipped?: boolean }>(`/accounts/${id}/sync?auto=${auto}`, { method: "POST" }),
   accountLive: (id: number) => request<LiveView>(`/accounts/${id}/live`),
@@ -262,7 +261,8 @@ export const api = {
   copyCreateMany: (b: { master_id: number; follower_ids: number[]; mode: string; value: number; max_lot: number }) => request<{ links: CopyLink[]; skipped: number[]; sync: { ok: boolean; problems: string[] } }>("/admin/copy/bulk", { method: "POST", body: JSON.stringify({ ...b, copy_sltp: true, symbol_map: {} }) }),
   copyUpdate: (id: number, b: CopyPatch) => request<CopyLink>(`/admin/copy/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   copyDelete: (id: number) => request<{ sync: { ok: boolean; problems: string[] } }>(`/admin/copy/${id}`, { method: "DELETE" }),
-  copyHalt: (on: boolean) => request<{ ok: boolean; error?: string }>("/admin/copy/halt", { method: "POST", body: JSON.stringify({ on }) }),
+  /** Stop all of the caller's own copying: every link of theirs is switched off (`on: false` does nothing). Links are switched back on one by one. */
+  copyHalt: (on: boolean) => request<{ ok: boolean; error?: string; stopped: number; sync: { ok: boolean; problems: string[] } }>("/admin/copy/halt", { method: "POST", body: JSON.stringify({ on }) }),
   copyResetLimits: (id: number) => request<{ ok: boolean; reset?: boolean; error?: string }>(`/admin/copy/${id}/reset-limits`, { method: "POST" }),
   copyCloseCopies: (id: number) => request<{ ok: boolean; closed?: number; error?: string }>(`/admin/copy/${id}/close-copies`, { method: "POST" }),
   copyEvents: (linkId?: number) => request<CopyEvent[]>(`/admin/copy/events?limit=100${linkId ? `&link_id=${linkId}` : ""}`),

@@ -1,7 +1,5 @@
-import { ActivityIndicator } from "./brand"
-import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
-import { Animated, Easing, Pressable, Text, View } from "react-native"
+import { Animated, Easing, Text, View } from "react-native"
 import Svg, { Defs, Line, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg"
 import type { LivePosition } from "./api"
 import { Pulse, useReducedMotion } from "./fx"
@@ -87,14 +85,5 @@ export function RangeBar({ stop, target, open, now }: { stop: number | null; tar
         <Text style={{ color: colors.green, fontSize: 10.5, fontWeight: "700" }}>TP {price(target)}</Text>
       </View>
     </View>
-  )
-}
-
-/** A round ✕ to close a trade (the app asks to confirm before anything is closed). */
-export function CloseX({ onPress, busy, disabled }: { onPress: () => void; busy?: boolean; disabled?: boolean }) {
-  return (
-    <Pressable onPress={onPress} disabled={busy || disabled} hitSlop={8} accessibilityLabel="Close this trade" style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: `${colors.red}99`, backgroundColor: pressed ? `${colors.red}33` : `${colors.red}14`, alignItems: "center", justifyContent: "center", opacity: disabled && !busy ? 0.4 : 1 })}>
-      {busy ? <ActivityIndicator size="small" color={colors.red} /> : <Ionicons name="close" size={18} color={colors.red} />}
-    </Pressable>
   )
 }

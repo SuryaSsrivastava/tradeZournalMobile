@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useState } from "react"
-import { Alert, Pressable, Text, View } from "react-native"
+import { Pressable, Text, View } from "react-native"
 import { api, isMt5, type Account, type LivePosition } from "../src/api"
 import { useAuth } from "../src/auth"
-import { CloseX, LiveLine, RangeBar, useProfitHistory } from "../src/livechart"
+import { LiveLine, RangeBar, useProfitHistory } from "../src/livechart"
 import { startLiveNotification } from "../src/liveservice"
 import { CountUp, Pulse } from "../src/fx"
 import { ProtectStop } from "../src/protect"
@@ -13,10 +13,10 @@ import { useLoad } from "../src/hooks"
 import { useLiveStream } from "../src/livestream"
 import { colors, radius } from "../src/theme"
 import { PlanNote } from "../src/upgrade"
-import { Button, Empty, ErrorNote, Label, Loading, Muted, Row, Screen, Title, tone } from "../src/ui"
+import { Empty, ErrorNote, Label, Loading, Muted, Row, Screen, Title, tone } from "../src/ui"
 import { usePrivacy } from "../src/privacy"
 
-/** The live open trades of every connected MetaTrader account, one drop-down section per account: a tap opens it. The first one starts open. Admins can close a trade here, as on the website (the server refuses anyone else). */
+/** The live open trades of every connected MetaTrader account, one drop-down section per account: a tap opens it. The first one starts open. */
 export default function Positions() {
   usePrivacy()  // draws this screen again when amounts are hidden or shown, so no screen has to be rebuilt
   const accounts = useLoad(() => api.accounts())
@@ -45,29 +45,10 @@ function AccountSection({ account, first, pulls, onChanged }: { account: Account
   useEffect(() => { if (pulls > 0) void live.refresh() }, [pulls])  // eslint-disable-line react-hooks/exhaustive-deps
   const v = stream.view ?? live.data
   const { user } = useAuth()
-  const canClose = !!user?.is_admin && account.kind === "metaapi"  // the server's own rule for trading live (the close route is not on the server now, so this stays off for "mt5" accounts)
   const canProtect = !!user?.is_admin && isMt5(account)  // moving a stop is an order too: admins only
-  const [closing, setClosing] = useState<string | null>(null)
-  const [gone, setGone] = useState<string[]>([])  // closed a moment ago: hidden until the next look agrees
-  const [note, setNote] = useState<string | null>(null)
-  const open = (v?.positions ?? []).filter((p) => !gone.includes(p.id))
+  const open = v?.positions ?? []
   const history = useProfitHistory(open, v?.at)
-  useEffect(() => { if (v?.state === "live" && open.length > 0 && !account.is_demo) void startLiveNotification(id, canClose) }, [id, v?.state, open.length > 0, canClose, account.is_demo])  // eslint-disable-line react-hooks/exhaustive-deps
-
-  const close = (items: LivePosition[], title: string, text: string) => Alert.alert(title, text, [
-    { text: "Cancel", style: "cancel" },
-    { text: items.length > 1 ? "Close them" : "Close position", style: "destructive", onPress: async () => {
-      setNote(null)
-      const failed: string[] = []
-      for (const p of items) {
-        setClosing(p.id)
-        try { await api.closePosition(id, p.id); setGone((g) => [...g, p.id]) } catch (e) { failed.push(`${p.symbol}: ${e instanceof Error ? e.message : "could not close it"}`) }
-      }
-      setClosing(null)
-      if (failed.length) setNote(failed.join(" · "))
-      void live.refresh()
-    } },
-  ])
+  useEffect(() => { if (v?.state === "live" && open.length > 0 && !account.is_demo) void startLiveNotification(id) }, [id, v?.state, open.length > 0, account.is_demo])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const isLive = v?.state === "live"
   const floating = open.reduce((sum, p) => sum + p.profit, 0)
@@ -115,11 +96,9 @@ function AccountSection({ account, first, pulls, onChanged }: { account: Account
                     <Stat label="Floating" value={money(v.floating, v.currency, true)} color={tone(v.floating)} />
                   </View>
                   {v.at ? <Muted style={{ textAlign: "center", marginTop: -4 }}>Updated {ago(v.at)}</Muted> : null}
-                  {note ? <ErrorNote>{note}</ErrorNote> : null}
                   {open.length === 0 ? <Muted style={{ textAlign: "center", paddingVertical: 10 }}>Nothing is open on this account right now.</Muted> : (
                     <>
-                      {open.map((p) => <PositionCard key={p.id} p={p} history={history[p.id] ?? [p.profit]} currency={v.currency} busy={closing === p.id} onClose={canClose ? () => close([p], `Close this ${p.symbol} ${p.side.toLowerCase()} now?`, `${p.volume ?? ""} lots are closed at the current market price.`) : undefined} protect={canProtect ? { accountId: id, onMoved: () => void live.refresh() } : undefined} />)}
-                      {canClose && open.length > 1 ? <Button tone="danger" disabled={closing !== null} onPress={() => close(open, "Close all open trades?", `${open.length} trades will be closed at the current market price.`)}>Close all ({open.length})</Button> : null}
+                      {open.map((p) => <PositionCard key={p.id} p={p} history={history[p.id] ?? [p.profit]} currency={v.currency} protect={canProtect ? { accountId: id, onMoved: () => void live.refresh() } : undefined} />)}
                     </>
                   )}
                 </>
@@ -141,7 +120,7 @@ const Stat = ({ label, value, color }: { label: string; value: string; color?: s
   <View style={{ flex: 1, alignItems: "center" }}><Label>{label}</Label><Text numberOfLines={1} style={{ color: color ?? colors.text, fontSize: 15, fontWeight: "800", marginTop: 2 }}>{value}</Text></View>
 )
 
-function PositionCard({ p, history, currency, onClose, busy, protect }: { p: LivePosition; history: number[]; currency?: string; onClose?: () => void; busy?: boolean; protect?: { accountId: number; onMoved: () => void } }) {
+function PositionCard({ p, history, currency, protect }: { p: LivePosition; history: number[]; currency?: string; protect?: { accountId: number; onMoved: () => void } }) {
   const long = p.side === "Long"
   const side = long ? colors.green : colors.red
   return (
@@ -157,10 +136,7 @@ function PositionCard({ p, history, currency, onClose, busy, protect }: { p: Liv
           </Row>
           {p.opened_at ? <Muted style={{ marginTop: 2 }}>Opened {ago(p.opened_at)}</Muted> : null}
         </View>
-        <Row style={{ gap: 10 }}>
-          <CountUp value={p.profit} format={(n) => money(n, currency, true)} ms={600} style={{ color: tone(p.profit), fontSize: 20, fontWeight: "800" }} />
-          {onClose ? <CloseX onPress={onClose} busy={busy} /> : null}
-        </Row>
+        <CountUp value={p.profit} format={(n) => money(n, currency, true)} ms={600} style={{ color: tone(p.profit), fontSize: 20, fontWeight: "800" }} />
       </Row>
       <View style={{ marginTop: 8 }}><LiveLine points={history} height={60} /></View>
       <RangeBar stop={p.stop} target={p.target} open={p.open_price} now={p.price} />

@@ -15,7 +15,7 @@ const num = (s: string) => { const n = Number(s.trim().replace(",", ".")); retur
 export default function AddAccount() {
   const router = useRouter()
   const { setMode, setFilter } = useScope()
-  const [kind, setKind] = useState<"manual" | "metaapi">("manual")
+  const [kind, setKind] = useState<"manual" | "mt5">("manual")
   const [name, setName] = useState("")
   const [balance, setBalance] = useState("10000")
   const [platform, setPlatform] = useState<"mt5" | "mt4">("mt5")
@@ -37,9 +37,9 @@ export default function AddAccount() {
     const bal = num(balance)
     if (!name.trim()) return setError("Give the account a name.")
     if (!bal || bal <= 0) return setError("Enter the starting balance.")
-    if (kind === "metaapi" && !(login.trim() && password && server.trim())) return setError("MetaTrader needs the account number, the investor password and the server name.")
+    if (kind === "mt5" && !(login.trim() && password && server.trim())) return setError("MetaTrader needs the account number, the investor password and the server name.")
     const rules: PropRules = prop ? { daily_loss_pct: num(daily), max_dd_pct: num(dd), trailing, target_pct: num(target), min_days: num(days) } : {}
-    const body: NewAccount = { name: name.trim(), kind, starting_balance: bal, is_prop: prop, is_demo: demo, rules, ...(kind === "metaapi" ? { broker: "mt5", login: login.trim(), mt_password: password, server: server.trim(), platform } : {}) }
+    const body: NewAccount = { name: name.trim(), kind, starting_balance: bal, is_prop: prop, is_demo: demo, rules, ...(kind === "mt5" ? { broker: "mt5", login: login.trim(), mt_password: password, server: server.trim(), platform } : {}) }
     setBusy(true); setError(null)
     try {
       const a = await api.addAccount(body)
@@ -70,7 +70,7 @@ export default function AddAccount() {
           <Label>Type of account</Label>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             <Pill active={kind === "manual"} onPress={() => setKind("manual")}>Manual journal</Pill>
-            <Pill active={kind === "metaapi"} onPress={() => setKind("metaapi")} color={colors.blue}>MetaTrader (automatic)</Pill>
+            <Pill active={kind === "mt5"} onPress={() => setKind("mt5")} color={colors.blue}>MetaTrader (automatic)</Pill>
           </View>
           <Muted>{kind === "manual" ? "No connection. You log your trades by hand or import a file. Free, and you can still track a prop firm's limits." : "Connects to your MetaTrader 4 or 5 account with its read-only investor password. Your trades arrive on their own. Counts against your plan's connected accounts."}</Muted>
         </Card>
@@ -80,7 +80,7 @@ export default function AddAccount() {
         <Card>
           <Field label="Account name" value={name} onChangeText={setName} maxLength={60} placeholder={kind === "manual" ? "e.g. FTMO challenge" : "e.g. Exness live"} />
           <Field label="Starting balance" value={balance} onChangeText={setBalance} keyboardType="decimal-pad" />
-          {kind === "metaapi" ? (
+          {kind === "mt5" ? (
             <>
               <Label>Platform</Label>
               <View style={{ flexDirection: "row", marginBottom: 6 }}>

@@ -1,13 +1,13 @@
 import { Flash } from "./delight"
 import { useRouter } from "expo-router"
-import { useEffect, useState } from "react"
-import { Alert, Pressable, Text, View } from "react-native"
-import { api, isMt5, type Account, type LivePosition } from "./api"
+import { useEffect } from "react"
+import { Pressable, Text, View } from "react-native"
+import { api, isMt5, type Account } from "./api"
 import { useAuth } from "./auth"
 import { CountUp, Pulse } from "./fx"
 import { money, price } from "./format"
 import { useLoad } from "./hooks"
-import { CloseX, LiveLine, RangeBar, useProfitHistory } from "./livechart"
+import { LiveLine, RangeBar, useProfitHistory } from "./livechart"
 import { clearLiveNotificationHidden, startLiveNotification } from "./liveservice"
 import { ProtectStop } from "./protect"
 import { colors } from "./theme"
@@ -25,29 +25,16 @@ function AccountLive({ account }: { account: Account }) {
   const router = useRouter()
   const { user } = useAuth()
   const live = useLoad(() => api.accountLive(account.id), { deps: [account.id] })  // looked at once each time the home screen comes into view: no timer
-  const [closing, setClosing] = useState<string | null>(null)
-  const [gone, setGone] = useState<string[]>([])  // closed a moment ago: hidden until the next look agrees
-  const [note, setNote] = useState<string | null>(null)
   const v = live.data
-  const open = (v?.positions ?? []).filter((p) => !gone.includes(p.id))
-  const canClose = !!user?.is_admin && account.kind === "metaapi"  // the server's own rule for trading live (the close route is not on the server now, so this stays off for "mt5" accounts)
+  const open = v?.positions ?? []
   const canProtect = !!user?.is_admin && isMt5(account)  // moving a stop is an order too: admins only
   const history = useProfitHistory(open, v?.at)
   const running = v?.state === "live" && open.length > 0
-  useEffect(() => { if (running && !account.is_demo) void startLiveNotification(account.id, canClose) }, [running, account.id, canClose, account.is_demo])  // not for a demo account: its trades are practice  // a trade is open: keep it in the notification bar too (if the member turned that on)
+  useEffect(() => { if (running && !account.is_demo) void startLiveNotification(account.id) }, [running, account.id, account.is_demo])  // not for a demo account: its trades are practice  // a trade is open: keep it in the notification bar too (if the member turned that on)
   const none = v?.state === "live" && open.length === 0
   useEffect(() => { if (none) void clearLiveNotificationHidden() }, [none])  // nothing open: if they had hidden the notification, the next trade shows it again
   if (!running) return null
   const floating = open.reduce((sum, p) => sum + p.profit, 0)
-
-  const close = (p: LivePosition) => Alert.alert(`Close this ${p.symbol} ${p.side.toLowerCase()} now?`, `${p.volume ?? ""} lots are closed at the current market price.`, [
-    { text: "Cancel", style: "cancel" },
-    { text: "Close position", style: "destructive", onPress: async () => {
-      setNote(null); setClosing(p.id)
-      try { await api.closePosition(account.id, p.id); setGone((g) => [...g, p.id]); void live.refresh() } catch (e) { setNote(`${p.symbol}: ${e instanceof Error ? e.message : "could not close it"}`) }
-      setClosing(null)
-    } },
-  ])
 
   return (
     <Card>
@@ -68,10 +55,7 @@ function AccountLive({ account }: { account: Account }) {
                   <Text style={{ color: long ? colors.green : colors.red, fontSize: 10.5, fontWeight: "800" }}>{p.side.toUpperCase()}{p.volume ? ` ${p.volume}` : ""}</Text>
                 </View>
               </Row>
-              <Row style={{ gap: 10 }}>
-                <Flash value={p.profit}><CountUp value={p.profit} format={(n) => money(n, v.currency, true)} ms={600} style={{ color: tone(p.profit), fontSize: 16, fontWeight: "800" }} /></Flash>
-                {canClose ? <CloseX onPress={() => close(p)} busy={closing === p.id} disabled={closing !== null} /> : null}
-              </Row>
+              <Flash value={p.profit}><CountUp value={p.profit} format={(n) => money(n, v.currency, true)} ms={600} style={{ color: tone(p.profit), fontSize: 16, fontWeight: "800" }} /></Flash>
             </Row>
             <View style={{ marginTop: 6 }}><LiveLine points={history[p.id] ?? [p.profit]} /></View>
             <RangeBar stop={p.stop} target={p.target} open={p.open_price} now={p.price} />
@@ -80,7 +64,6 @@ function AccountLive({ account }: { account: Account }) {
           </View>
         )
       })}
-      {note ? <Text style={{ color: colors.red, fontSize: 12, marginTop: 6 }}>{note}</Text> : null}
     </Card>
   )
 }
