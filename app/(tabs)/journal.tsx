@@ -5,7 +5,7 @@ import { Alert, Pressable, Text, View } from "react-native"
 import { api, type JournalTrade } from "../../src/api"
 import { AreaChart, Columns, Curve, PnlCalendar, RankBars } from "../../src/charts"
 import { DayTrades } from "../../src/day"
-import { CountUp, Press, Rise, Ring, Stat } from "../../src/fx"
+import { CountUp, Heading, Mini, Press, Rise, Ring, Stat } from "../../src/fx"
 import { dayLabel, money } from "../../src/format"
 import { useAutoSync } from "../../src/autosync"
 import { useLoad } from "../../src/hooks"
@@ -172,12 +172,12 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
         <>
           <Rise delay={80}>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-              <Stat label="Win rate"><CountUp key={range} value={st.winRate} format={(n) => `${n.toFixed(0)}%`} style={[big, { color: colors.text }]} /></Stat>
-              <Stat label="Avg R"><CountUp key={range} value={st.avgR} format={(n) => `${sgn(n)}R`} style={[big, { color: tone(st.avgR) }]} /></Stat>
-              <Stat label="Profit factor">{st.profitFactor === Infinity ? "∞" : st.profitFactor.toFixed(2)}</Stat>
-              <Stat label="Streak" tint={run.current >= 0 ? colors.green : colors.red}>{run.current === 0 ? "-" : run.current > 0 ? `${run.current} wins` : `${-run.current} losses`}</Stat>
-              <Stat label="Avg win" tint={colors.green}>{usd(st.avgWin)}</Stat>
-              <Stat label="Avg loss" tint={colors.red}>{usd(st.avgLoss)}</Stat>
+              <Stat label="Win rate" sub={`${st.wins}W · ${st.losses}L`} corner={<Mini.Gauge pct={st.winRate} color={colors.green} />}><CountUp key={range} value={st.winRate} format={(n) => `${n.toFixed(0)}%`} style={[big, { color: colors.text }]} /></Stat>
+              <Stat label="Avg R" sub="per trade" corner={<Mini.Line points={equityPointsR(t)} color={tone(st.avgR)} />}><CountUp key={range} value={st.avgR} format={(n) => `${sgn(n)}R`} style={[big, { color: tone(st.avgR) }]} /></Stat>
+              <Stat label="Profit factor" sub="gross win ÷ gross loss" corner={<Mini.Donut pct={st.profitFactor === Infinity ? 100 : (st.profitFactor / (st.profitFactor + 1)) * 100} color={colors.green} />}>{st.profitFactor === Infinity ? "∞" : st.profitFactor.toFixed(2)}</Stat>
+              <Stat label="Streak" tint={run.current >= 0 ? colors.green : colors.red} below={<Mini.Dots results={[...t].sort((a, b) => +new Date(a.opened_at) - +new Date(b.opened_at)).slice(-10).map(pnlOf)} />}>{run.current === 0 ? "-" : run.current > 0 ? `${run.current} wins` : `${-run.current} losses`}</Stat>
+              <Stat label="Avg win" tint={colors.green} below={<Mini.Split a={st.avgWin} b={Math.abs(st.avgLoss)} ca={colors.green} cb={colors.red} />}>{usd(st.avgWin)}</Stat>
+              <Stat label="Avg loss" tint={colors.red} below={<Mini.Split a={st.avgWin} b={Math.abs(st.avgLoss)} ca={colors.green} cb={colors.red} />}>{usd(st.avgLoss)}</Stat>
               {hold.win != null ? <Stat label="Hold · winners">{minutesText(hold.win)}</Stat> : null}
               {hold.loss != null ? <Stat label="Hold · losers">{minutesText(hold.loss)}</Stat> : null}
             </View>
@@ -185,12 +185,12 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
           </Rise>
 
           <Card delay={140}>
-            <Label>Daily P&L</Label>
+            <Heading icon="bar-chart" color="#22d38a">Daily P&L</Heading>
             <Columns data={daily.map((d) => ({ label: String(new Date(d.iso).getDate()), value: d.pnl }))} format={usd} labelEvery={daily.length > 14 ? 3 : 1} />
           </Card>
 
           <Card delay={200}>
-            <Label>Wins and losses</Label>
+            <Heading icon="contrast" color="#60a5fa">Wins and losses</Heading>
             <Row style={{ gap: 18 }}>
               <Ring size={120} stroke={13} slices={[{ pct: st.winRate, color: colors.green }, { pct: 100 - st.winRate, color: colors.red }]}>
                 <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800" }}>{st.winRate.toFixed(0)}%</Text><Muted>win rate</Muted>
@@ -214,7 +214,7 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
           ) : null}
 
           <Card delay={280}>
-            <Label>R-multiple distribution</Label>
+            <Heading icon="analytics" color="#a78bfa">R-multiple distribution</Heading>
             <Columns data={buckets.map((b) => ({ label: b.label, value: b.value }))} format={(n) => `${n} trade${n === 1 ? "" : "s"}`} height={110} color={(_d, i) => (buckets[i].sign < 0 ? colors.red : colors.green)} />
             <Muted style={{ marginTop: 6 }}>Trades counted by result in R. A healthy journal has a short red side and a longer green tail.</Muted>
           </Card>
@@ -227,26 +227,26 @@ function Overview({ trades, range, setRange }: { trades: JournalTrade[]; range: 
           ) : null}
 
           <Card delay={360}>
-            <Label>By weekday</Label>
+            <Heading icon="calendar" color="#2dd4bf">By weekday</Heading>
             <Columns data={weekdays(t).map((d) => ({ label: d.label, value: d.pnl }))} format={usd} height={110} />
           </Card>
 
           <Card delay={400}>
-            <Label>By hour you opened the trade</Label>
+            <Heading icon="time" color="#818cf8">By hour you opened the trade</Heading>
             <Columns data={byHour(t).map((d) => ({ label: d.label, value: d.pnl }))} format={usd} height={110} labelEvery={3} />
           </Card>
 
           <PathInsights trades={t} delay={420} />
           <EarlyExits trades={t} delay={430} />
 
-          {sessions.length > 0 ? <Card delay={440}><Label>Sessions</Label><RankBars rows={rows(sessions)} format={usd} /></Card> : null}
-          {sides.length > 1 ? <Card delay={480}><Label>Long and short</Label><RankBars rows={rows(sides)} format={usd} /></Card> : null}
-          {months.length >= 2 ? <Card delay={520}><Label>By month</Label><Columns data={months.map((m) => ({ label: m.label, value: m.pnl }))} format={usd} height={110} labelEvery={months.length > 6 ? 2 : 1} /></Card> : null}
-          {symbolRows.length > 1 ? <Card delay={560}><Label>By symbol</Label><RankBars rows={rows(symbolRows)} format={usd} /></Card> : null}
-          {setups.length > 0 ? <Card delay={600}><Label>Setups</Label><RankBars rows={rows(setups)} format={usd} /></Card> : null}
-          {ratings.length > 1 ? <Card delay={640}><Label>Your own rating, against the result</Label><RankBars rows={rows(ratings)} format={usd} /></Card> : null}
-          {discipline.length > 0 ? <Card delay={680}><Label>Discipline</Label><RankBars rows={discipline.map((x) => ({ key: x.key, value: x.net, sub: `${x.n} trade${x.n === 1 ? "" : "s"}` }))} format={usd} /></Card> : null}
-          {feelings.length > 0 ? <Card delay={720}><Label>Emotions</Label><RankBars rows={feelings.map((x) => ({ key: x.key, value: x.net, sub: `${x.n}×` }))} format={usd} /></Card> : null}
+          {sessions.length > 0 ? <Card delay={440}><Heading icon="globe" color="#38bdf8">Sessions</Heading><RankBars rows={rows(sessions)} format={usd} /></Card> : null}
+          {sides.length > 1 ? <Card delay={480}><Heading icon="swap-vertical" color="#fb923c">Long and short</Heading><RankBars rows={rows(sides)} format={usd} /></Card> : null}
+          {months.length >= 2 ? <Card delay={520}><Heading icon="calendar-number" color="#fbbf24">By month</Heading><Columns data={months.map((m) => ({ label: m.label, value: m.pnl }))} format={usd} height={110} labelEvery={months.length > 6 ? 2 : 1} /></Card> : null}
+          {symbolRows.length > 1 ? <Card delay={560}><Heading icon="pricetag" color="#22d3ee">By symbol</Heading><RankBars rows={rows(symbolRows)} format={usd} /></Card> : null}
+          {setups.length > 0 ? <Card delay={600}><Heading icon="flask" color="#a78bfa">Setups</Heading><RankBars rows={rows(setups)} format={usd} /></Card> : null}
+          {ratings.length > 1 ? <Card delay={640}><Heading icon="star" color="#fbbf24">Your own rating, against the result</Heading><RankBars rows={rows(ratings)} format={usd} /></Card> : null}
+          {discipline.length > 0 ? <Card delay={680}><Heading icon="shield-checkmark" color="#a78bfa">Discipline</Heading><RankBars rows={discipline.map((x) => ({ key: x.key, value: x.net, sub: `${x.n} trade${x.n === 1 ? "" : "s"}` }))} format={usd} /></Card> : null}
+          {feelings.length > 0 ? <Card delay={720}><Heading icon="heart" color="#f4566e">Emotions</Heading><RankBars rows={feelings.map((x) => ({ key: x.key, value: x.net, sub: `${x.n}×` }))} format={usd} /></Card> : null}
         </>
       ) : null}
     </>

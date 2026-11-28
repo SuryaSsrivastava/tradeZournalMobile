@@ -5,7 +5,8 @@ import type { JournalTrade } from "./api"
 import { money } from "./format"
 import { pnlOf } from "./journal"
 import { colors } from "./theme"
-import { Card, Label, Muted, Pill, Row, tone } from "./ui"
+import { Heading } from "./fx"
+import { Card, Muted, Pill, Row, tone } from "./ui"
 
 const AMBER = "#f5b53d"
 const withPath = (t: JournalTrade) => t.mae_usd != null && t.mfe_usd != null
@@ -142,7 +143,7 @@ export function PathInsights({ trades, delay = 0 }: { trades: JournalTrade[]; de
   }, [trades])
   return (
     <Card delay={delay}>
-      <Label>How your trades travelled</Label>
+      <Heading icon="git-branch" color="#22d3ee">How your trades travelled</Heading>
       <Muted style={{ marginBottom: 10 }}>From price bars: how far each trade ran against you and for you.</Muted>
       {m.n === 0 ? <Muted style={{ textAlign: "center", paddingVertical: 14 }}>No trade has its price path yet. New automatic trades get theirs a couple of minutes after they close, and the day after the close fills in once that day is over.</Muted> : (
         <>
@@ -187,7 +188,7 @@ export function EarlyExits({ trades, delay = 0 }: { trades: JournalTrade[]; dela
   const waitLabel = HOURS.find((h) => h.id === wait)?.label ?? ""
   return (
     <Card delay={delay}>
-      <Label>Early exits: what holding on would have made</Label>
+      <Heading icon="exit" color="#fbbf24">Early exits: what holding on would have made</Heading>
       <Muted style={{ marginBottom: 10 }}>Trades you closed yourself, against leaving them for 1, 4 or 24 hours more.</Muted>
       {m.n === 0 ? <Muted style={{ textAlign: "center", paddingVertical: 14 }}>No early exits to compare yet. A trade closed by hand (or by a robot, not by its stop or target) shows up here a day after it closes, once the price for the next 24 hours is in.</Muted> : (
         <>
@@ -229,7 +230,7 @@ export function TradePath({ t }: { t: JournalTrade }) {
   const held = [["1 hour", t.hold_1h_usd], ["4 hours", t.hold_4h_usd], ["24 hours", t.hold_24h_usd]] as const
   return (
     <Card>
-      <Label>How this trade travelled</Label>
+      <Heading icon="git-branch" color="#22d3ee">How this trade travelled</Heading>
       {reason ? <View style={{ alignSelf: "flex-start", backgroundColor: `${rc}22`, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 6 }}><Text style={{ color: rc, fontSize: 12, fontWeight: "800" }}>{reason[0]}</Text></View> : null}
       {t.mae_usd != null && t.mfe_usd != null ? (
         <>

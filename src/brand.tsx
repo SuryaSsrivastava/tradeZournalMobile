@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { Animated, Easing, Text, View, type StyleProp, type ViewStyle } from "react-native"
 import Svg, { Circle, Defs, Line, LinearGradient, Rect, Stop } from "react-native-svg"
-import { colors } from "./theme"
+import { colors, currentScheme } from "./theme"
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 const AnimatedRect = Animated.createAnimatedComponent(Rect)
@@ -25,11 +25,26 @@ export function BrandMark({ size = 40 }: { size?: number }) {
   )
 }
 
-/** "Trade" light, "Zournal" bold in the brand green. */
+const hex = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+/** The colour a fraction of the way along a gradient of stops. */
+function along(stops: string[], f: number) {
+  const x = Math.min(0.999, Math.max(0, f)) * (stops.length - 1)
+  const i = Math.floor(x)
+  const [a, b] = [hex(stops[i]), hex(stops[i + 1])]
+  return "#" + a.map((v, k) => Math.round(v + (b[k] - v) * (x - i)).toString(16).padStart(2, "0")).join("")
+}
+
+/**
+ * The lettering, as on the web: "Trade" light and "Zournal" extra bold, in Sora, with "Zournal" running emerald, cyan, blue
+ * (the deeper 700s on a light background). The gradient is one colour per letter. `color` is the colour of "Trade".
+ */
 export function BrandWord({ size = 20, color = colors.text }: { size?: number; color?: string }) {
+  const stops = currentScheme() === "light" ? ["#047857", "#0e7490", "#1d4ed8"] : ["#34d399", "#22d3ee", "#60a5fa"]
+  const z = "Zournal".split("")
   return (
-    <Text style={{ fontSize: size, letterSpacing: -size * 0.025, color }} accessibilityLabel="TradeZournal">
-      <Text style={{ fontWeight: "300" }}>Trade</Text><Text style={{ fontWeight: "800", color: "#34d399" }}>Zournal</Text>
+    <Text style={{ fontSize: size, letterSpacing: -size * 0.025, color, includeFontPadding: false }} accessibilityLabel="TradeZournal">
+      <Text style={{ fontFamily: "Sora-Light" }}>Trade</Text>
+      {z.map((ch, i) => <Text key={i} style={{ fontFamily: "Sora-ExtraBold", color: along(stops, i / (z.length - 1)) }}>{ch}</Text>)}
     </Text>
   )
 }
@@ -64,3 +79,14 @@ export function Spinner({ size = "small", color = "#fff", style }: { size?: "sma
   )
 }
 export { Spinner as ActivityIndicator }
+
+/** The start screen: the big animated rings and the wordmark on the same dark as the splash, shown while the app signs you in (the web's LogoLoader). */
+export function LogoLoader({ label }: { label?: string }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: "#0b0e14", alignItems: "center", justifyContent: "center", gap: 22 }} accessibilityRole="progressbar">
+      <Spinner size={88} />
+      <BrandWord size={26} color="#e6edf3" />
+      {label ? <Text style={{ color: "#8b98a9", fontSize: 12, letterSpacing: 0.6 }}>{label}</Text> : null}
+    </View>
+  )
+}

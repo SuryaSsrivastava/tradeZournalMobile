@@ -18,6 +18,8 @@ import { OfflineBanner } from "../src/offlinebanner"
 import { ScopeProvider } from "../src/scope"
 import { Toaster } from "../src/toast"
 import { colors } from "../src/theme"
+import { useSora } from "../src/font"
+import { LogoLoader } from "../src/brand"
 import { LanguageProvider } from "../src/i18n"
 import { PrivacyProvider, usePrivacy } from "../src/privacy"
 import { ThemeProvider, useTheme } from "../src/themeprovider"
@@ -31,7 +33,9 @@ SplashScreen.setOptions({ duration: 450, fade: true })  // the logo fades into t
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
 function Gate() {
-  const { user, ready } = useAuth()
+  const { user, ready: signedIn } = useAuth()
+  const fonts = useSora()
+  const ready = signedIn && fonts  // nothing is drawn in a stand-in font: the rings wait until Sora is in
   const segments = useSegments()
   const router = useRouter()
   const { hasShareIntent, shareIntent, resetShareIntent } = useShare()
@@ -44,9 +48,10 @@ function Gate() {
     resetShareIntent()
   }, [user, hasShareIntent, shareIntent, router, resetShareIntent])
 
+  useEffect(() => { SplashScreen.hideAsync().catch(() => {}) }, [])  // the still logo gives way at once to the moving one (LogoLoader) rather than waiting for the sign-in check
+
   useEffect(() => {
     if (!ready) return
-    SplashScreen.hideAsync().catch(() => {})
     if (!user && segments[0] === "auth") {  // Google sign-in has come back to the app: the sign-in screen under it shows the result (or the error), and home follows once the session is made
       if (router.canGoBack()) router.back()
       else router.replace("/login")
@@ -93,7 +98,7 @@ function Gate() {
     return onLiveNotificationPress(() => router.push("/positions"))
   }, [user, router])
 
-  if (!ready) return null
+  if (!ready) return <LogoLoader />  // the splash has gone by now (see above); the rings move while the session is checked
   return (
     <Stack screenOptions={{ animation: "slide_from_right", headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.text, headerShadowVisible: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="login" options={{ headerShown: false }} />

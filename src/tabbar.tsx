@@ -6,6 +6,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { tick } from "./fx"
 import { colors } from "./theme"
 
+// each tab has its own colour, like the coloured icons in the web's side menu
+const ACCENT: Record<string, string> = { index: "#60a5fa", journal: "#22d38a", markets: "#fb923c", chart: "#a78bfa", more: "#f472b6" }
+const accentOf = (name?: string) => ACCENT[name ?? ""] ?? colors.green
+
 type BarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0]
 
 /** The bottom bar: a pill of light slides under the open tab, the icon springs up, and every tap ticks. */
@@ -17,6 +21,7 @@ export function TabBar({ state, descriptors, navigateToTab }: BarProps) {
   const shown = state.routes.filter((r) => (descriptors[r.key].options as { href?: unknown }).href !== null)
   const n = shown.length
   const slot = w / n
+  const now = accentOf(state.routes[state.index]?.name)
   const at = shown.findIndex((r) => r.key === state.routes[state.index].key)  // -1 while a hidden screen is open
 
   useEffect(() => {
@@ -30,15 +35,15 @@ export function TabBar({ state, descriptors, navigateToTab }: BarProps) {
       <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ flexDirection: "row", paddingTop: 6 }}>
         {w > 0 && at >= 0 ? (
           <Animated.View pointerEvents="none" style={{ position: "absolute", top: 6, left: 0, width: slot, height: 50, alignItems: "center", transform: [{ translateX: x }] }}>
-            <View style={{ width: slot - 18, height: 48, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: `${colors.green}44` }}>
-              <LinearGradient colors={[`${colors.green}30`, `${colors.green}08`]} style={{ flex: 1 }} />
+            <View style={{ width: slot - 18, height: 48, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: `${now}55` }}>
+              <LinearGradient colors={[`${now}33`, `${now}0a`]} style={{ flex: 1 }} />
             </View>
           </Animated.View>
         ) : null}
         {shown.map((route) => {
           const { options } = descriptors[route.key]
           const focused = state.routes[state.index].key === route.key
-          const color = focused ? colors.green : colors.muted
+          const color = focused ? accentOf(route.name) : colors.muted
           const badge = options.tabBarBadge
           return (
             <Tab key={route.key} focused={focused} onPress={() => {

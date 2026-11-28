@@ -1,10 +1,11 @@
+import { Ionicons } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import { LinearGradient } from "expo-linear-gradient"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native"
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg"
 import { Backdrop } from "./background"
-import { colors, radius } from "./theme"
+import { colors, currentScheme, radius } from "./theme"
 
 /** A light tick under the finger. Silent where the phone has no haptics. */
 export const tick = () => { void Haptics.selectionAsync().catch(() => {}) }
@@ -238,6 +239,9 @@ export function Hero({ tint = colors.green, children, style }: { tint?: string; 
 
 /** A card with a hairline of light round its edge that fades from the top-left, like glass catching a lamp. */
 export function Glass({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  if (currentScheme() === "light") {  // as on the web: a white card that lifts off the page by tone and a soft shadow, with no outline
+    return <View style={[{ borderRadius: radius.lg, backgroundColor: colors.card, padding: 14, marginBottom: 12, shadowColor: "#0f172a", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2 }, style]}>{children}</View>
+  }
   return (
     <LinearGradient colors={[`${colors.text}26`, `${colors.border}`, `${colors.border}66`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.lg + 1, padding: 1, marginBottom: 12 }}>
       <View style={[{ borderRadius: radius.lg, backgroundColor: `${colors.card}f2`, padding: 14 }, style]}>{children}</View>
@@ -258,12 +262,107 @@ const isText = (c: unknown) => typeof c === "string" || typeof c === "number"
 /** True for text and numbers, also when JSX split it into pieces (`{n}%` arrives as [n, "%"]): those need a <Text> around them. */
 const plain = (c: ReactNode) => isText(c) || (Array.isArray(c) && c.every((x) => x == null || x === false || isText(x)))
 
-/** A glass tile: a small label over a number. */
-export function Stat({ label, children, tint, min = "46%" }: { label: string; children: ReactNode; tint?: string; min?: `${number}%` }) {
+type Look = { icon: keyof typeof Ionicons.glyphMap; color: string }
+// a colour and an icon for each kind of number, as the web's KPI cards have
+const LOOKS: [RegExp, Look][] = [
+  [/win rate|win %/i, { icon: "radio-button-on", color: "#60a5fa" }],
+  [/profit factor/i, { icon: "pie-chart", color: "#a78bfa" }],
+  [/expectancy|avg r/i, { icon: "pulse", color: "#fbbf24" }],
+  [/avg win/i, { icon: "bar-chart", color: "#38bdf8" }],
+  [/avg loss|loss/i, { icon: "trending-down", color: "#f4566e" }],
+  [/drawdown/i, { icon: "trending-down", color: "#f4566e" }],
+  [/streak|consecutive/i, { icon: "flame", color: "#fb923c" }],
+  [/hold|duration/i, { icon: "time", color: "#818cf8" }],
+  [/days/i, { icon: "calendar", color: "#2dd4bf" }],
+  [/payoff/i, { icon: "speedometer", color: "#2dd4bf" }],
+  [/p&l|pnl|profit|net|total|equity|balance/i, { icon: "trending-up", color: "#22d38a" }],
+]
+const lookFor = (label: string): Look => LOOKS.find(([r]) => r.test(label))?.[1] ?? { icon: "stats-chart", color: "#22d3ee" }
+
+/** The small coloured square with an icon in it, which starts every card title and number on the web. */
+export function IconChip({ icon, color, size = 24 }: { icon: keyof typeof Ionicons.glyphMap; color: string; size?: number }) {
   return (
-    <View style={{ flex: 1, minWidth: min, backgroundColor: `${colors.bg}88`, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10 }}>
-      <Text style={{ color: colors.muted, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.3, textTransform: "uppercase" }}>{label}</Text>
-      <View style={{ marginTop: 3 }}>{plain(children) ? <Text style={{ color: tint ?? colors.text, fontSize: 19, fontWeight: "800", letterSpacing: -0.3 }}>{children}</Text> : children}</View>
+    <View style={{ width: size, height: size, borderRadius: size * 0.32, backgroundColor: `${color}26`, alignItems: "center", justifyContent: "center" }}>
+      <Ionicons name={icon} size={size * 0.58} color={color} />
     </View>
   )
+}
+
+/** A card title as on the web: an icon chip and the name. */
+export function Heading({ icon, color = colors.green, children, right }: { icon: keyof typeof Ionicons.glyphMap; color?: string; children: ReactNode; right?: ReactNode }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 9 }}>
+      <IconChip icon={icon} color={color} />
+      <Text style={{ flex: 1, color: colors.text, fontSize: 14, fontWeight: "700", letterSpacing: -0.2 }}>{children}</Text>
+      {right}
+    </View>
+  )
+}
+
+/** A KPI card as on the web: an icon chip with the label, the number, and a soft glow of the card's colour in the corner. */
+export function Stat({ label, children, tint, min = "46%", sub, icon, corner, below }: { label: string; children: ReactNode; tint?: string; min?: `${number}%`; sub?: string; icon?: keyof typeof Ionicons.glyphMap; corner?: ReactNode; below?: ReactNode }) {
+  const look = lookFor(label)
+  const c = look.color
+  return (
+    <View style={{ flex: 1, minWidth: min, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: "hidden", paddingHorizontal: 12, paddingVertical: 11 }}>
+      <LinearGradient colors={[`${c}${currentScheme() === "light" ? "1f" : "2e"}`, `${c}00`]} start={{ x: 1, y: 0 }} end={{ x: 0.2, y: 0.8 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+        <IconChip icon={icon ?? look.icon} color={c} size={22} />
+        <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.1, textTransform: "uppercase" }}>{label}</Text>
+      </View>
+      <View style={{ marginTop: 8 }}>{plain(children) ? <Text style={{ color: tint ?? colors.text, fontSize: 21, fontWeight: "800", letterSpacing: -0.4 }}>{children}</Text> : children}</View>
+      {sub ? <Text style={{ color: colors.muted, fontSize: 10.5, marginTop: 2 }}>{sub}</Text> : null}
+      {below}
+      {corner ? <View style={{ position: "absolute", right: 10, bottom: 9 }}>{corner}</View> : null}
+    </View>
+  )
+}
+
+/** The small pictures in the corner of a KPI card, as on the web. Static (no motion), so a screen of them stays light. */
+export const Mini = {
+  /** A half-dial: how much of it is filled. */
+  Gauge({ pct, color, size = 46 }: { pct: number; color: string; size?: number }) {
+    const r = 18, c = Math.PI * r, f = Math.max(0, Math.min(1, pct / 100))
+    return (
+      <Svg width={size} height={size * 0.62} viewBox="0 0 48 30">
+        <Path d="M6 26 A18 18 0 0 1 42 26" fill="none" stroke={`${color}33`} strokeWidth={5} strokeLinecap="round" />
+        <Path d="M6 26 A18 18 0 0 1 42 26" fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${c * f} ${c}`} />
+      </Svg>
+    )
+  },
+  /** A ring with a share of it filled. */
+  Donut({ pct, color, size = 38 }: { pct: number; color: string; size?: number }) {
+    const r = 14, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, pct / 100))
+    return (
+      <Svg width={size} height={size} viewBox="0 0 36 36">
+        <Circle cx={18} cy={18} r={r} fill="none" stroke={`${color}33`} strokeWidth={5} />
+        <Circle cx={18} cy={18} r={r} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${c * f} ${c}`} transform="rotate(-90 18 18)" />
+      </Svg>
+    )
+  },
+  /** One bar split in two: how big the first part is against the second (average win against average loss). */
+  Split({ a, b, ca, cb }: { a: number; b: number; ca: string; cb: string }) {
+    const t = a + b, f = t > 0 ? a / t : 0.5
+    return (
+      <View style={{ flexDirection: "row", height: 6, borderRadius: 3, overflow: "hidden", marginTop: 8 }}>
+        <View style={{ flex: Math.max(0.05, f), backgroundColor: ca }} />
+        <View style={{ flex: Math.max(0.05, 1 - f), backgroundColor: cb }} />
+      </View>
+    )
+  },
+  /** A row of dots, one a trade, green for a win and red for a loss, newest last. */
+  Dots({ results, size = 7 }: { results: number[]; size?: number }) {
+    return (
+      <View style={{ flexDirection: "row", gap: 3, marginTop: 8 }}>
+        {results.map((r, i) => <View key={i} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: r > 0 ? colors.green : r < 0 ? colors.red : colors.muted }} />)}
+      </View>
+    )
+  },
+  /** A small line of how a number moved. */
+  Line({ points, color, width = 70, height = 26 }: { points: number[]; color: string; width?: number; height?: number }) {
+    if (points.length < 2) return null
+    const lo = Math.min(...points), hi = Math.max(...points), span = hi - lo || 1
+    const d = points.map((p, i) => `${i ? "L" : "M"}${((i / (points.length - 1)) * width).toFixed(1)} ${(height - 2 - ((p - lo) / span) * (height - 4)).toFixed(1)}`).join(" ")
+    return <Svg width={width} height={height}><Path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg>
+  },
 }
