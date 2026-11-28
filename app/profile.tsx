@@ -92,11 +92,13 @@ export default function Profile() {
             <View style={{ gap: 14, marginTop: 6 }}>
               {rows.map((k) => {
                 const used = u.used[k] ?? 0, cap = u.limits[k]
+                const credits = u.ai_metering === "credits" && k === "ai_requests"  // AI is counted by what each call cost: a number of credits, with a decimal
+                const shown = (v: number) => (Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 1 }))
                 return (
                   <View key={k}>
                     <Row style={{ justifyContent: "space-between", marginBottom: 5 }}>
-                      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{NAMES[k]}</Text>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>{cap == null ? `${used} · unlimited` : `${used} / ${cap}`}</Text>
+                      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{credits ? "AI credits" : NAMES[k]}</Text>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>{cap == null ? `${shown(used)} · unlimited` : `${shown(used)} / ${cap.toLocaleString()}`}</Text>
                     </Row>
                     {cap != null && cap > 0 ? <Bar pct={(used / cap) * 100} color={used / cap >= 0.9 ? colors.red : used / cap >= 0.7 ? colors.amber : colors.green} /> : null}
                   </View>

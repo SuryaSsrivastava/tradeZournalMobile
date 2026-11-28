@@ -73,6 +73,8 @@ export default function Addons() {
   // how many are left comes from the plan usage (the same numbers the website shows); when each runs out comes from the credits call, which an older server may not have yet
   const left = (k: string) => usage.data?.credits?.[k] ?? credits.data?.credits[k]?.left ?? 0
   const have = HELD.filter(([k]) => left(k) > 0)
+  const aiCredits = usage.data?.ai_metering === "credits"  // the plan's AI is counted in credits, so a pack's AI is too
+  const nameOf = (k: string, many: string, one?: string) => (aiCredits && k === "ai_requests" ? (one ? "AI credit" : "AI credits") : (one ?? many))
 
   return (
     <Screen padTop={false} refreshing={list.refreshing} onRefresh={() => { void list.refresh(); void credits.refresh(); void usage.refresh() }}>
@@ -97,7 +99,7 @@ export default function Addons() {
             <Label>Your extra credits</Label>
             {!usage.loaded ? <Loading /> : have.length === 0 ? <Muted>None yet. A pack adds credits that are used after your plan's own allowance runs out.</Muted> : have.map(([k, name], i) => (
               <Row key={k} style={{ justifyContent: "space-between", paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: `${colors.border}99` }}>
-                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>{name}</Text>
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>{nameOf(k, name)}</Text>
                 <View style={{ alignItems: "flex-end" }}><Text style={{ color: colors.green, fontSize: 15, fontWeight: "800" }}>{left(k)} left</Text>{credits.data?.credits[k]?.expires_at ? <Muted>until {date(credits.data.credits[k].expires_at)}</Muted> : null}</View>
               </Row>
             ))}
@@ -125,7 +127,7 @@ export default function Addons() {
               </Row>
               <View style={{ marginTop: 10, gap: 6 }}>
                 {KEYS.filter(([k]) => (p[k] as number) > 0).map(([k, many, one]) => (
-                  <Row key={k}><Ionicons name="add-circle" size={17} color={colors.green} /><Text style={{ color: colors.text, fontSize: 14, marginLeft: 10 }}>{(p[k] as number).toLocaleString()} {(p[k] as number) === 1 ? one : many}</Text></Row>
+                  <Row key={k}><Ionicons name="add-circle" size={17} color={colors.green} /><Text style={{ color: colors.text, fontSize: 14, marginLeft: 10 }}>{(p[k] as number).toLocaleString()} {(p[k] as number) === 1 ? nameOf(k, many, one) : nameOf(k, many)}</Text></Row>
                 ))}
               </View>
               <View style={{ marginTop: 14 }}><Button onPress={() => void buy(p)} busy={busy === p.id} disabled={!paidPlan || busy !== null}>{paidPlan ? "Buy this pack" : "Pro or Elite only"}</Button></View>

@@ -2,7 +2,7 @@ import { useRouter } from "expo-router"
 import { Text, View } from "react-native"
 import Svg, { Circle } from "react-native-svg"
 import type { Account } from "./api"
-import { Press } from "./fx"
+import { Heading, Press } from "./fx"
 import { colors, themed } from "./theme"
 import { Card, Label } from "./ui"
 
@@ -53,7 +53,7 @@ export function PropCard({ account, delay }: { account: Account; delay?: number 
       <Press onPress={() => router.push(`/account/${account.id}`)}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <View style={{ flex: 1, paddingRight: 10 }}>
-            <Label>Prop firm</Label>
+            <Heading icon="briefcase" color="#a78bfa">Prop firm</Heading>
             <Text numberOfLines={1} style={{ color: colors.text, fontSize: 15, fontWeight: "800", marginTop: 2 }}>{account.name}</Text>
           </View>
           <Text style={{ color: STATE_COLOR[state], fontSize: 12, fontWeight: "800" }}>{word}</Text>

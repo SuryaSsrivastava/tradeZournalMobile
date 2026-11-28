@@ -9,7 +9,7 @@ import { markOffline } from "./net"
 // ---- types: the parts of the TradeZournal API this app reads --------------------------------------------------------------------------------------------------------------------
 
 export type User = { id: number; email: string; name: string; timezone: string; plan: string; is_admin: boolean; plan_expires_at?: string | null; has_password?: boolean; has_google?: boolean; created_at?: string | null }
-export type PlanUsage = { credits?: Record<string, number>; plan: string; lapsed: boolean; limits: Record<string, number | null>; used: Record<string, number>; resets_on: string | null; ends_on: string | null }
+export type PlanUsage = { ai_metering?: "requests" | "credits"; credits?: Record<string, number>; plan: string; lapsed: boolean; limits: Record<string, number | null>; used: Record<string, number>; resets_on: string | null; ends_on: string | null }
 export type Notice = { id: number; kind: string; title: string; body: string; link: string; read: boolean; created_at: string }
 /** The automatic break-even on a MetaTrader account: once a trade is `value` R (or money) in profit its stop moves to the entry, plus `offset` in price. */
 export type AutoProtect = { on: boolean; unit: "r" | "money"; value: number; offset: number }

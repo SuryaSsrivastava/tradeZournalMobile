@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ComponentRef } from "react"
 import { Animated, Easing, Pressable, Text, View } from "react-native"
 import Svg, { Circle } from "react-native-svg"
 import type { Meter } from "./api"
-import { Bar, Pulse, Rise, tick, useReducedMotion } from "./fx"
+import { Bar, Heading, Pulse, Rise, tick, useReducedMotion } from "./fx"
 import { colors } from "./theme"
 import { Card, Label } from "./ui"
 
@@ -244,7 +244,7 @@ export function GuardRailsCard({ meters, onEdit, delay }: { meters: (Meter & { s
       <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={`Today's guard rails, ${summary}`}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <View style={{ flex: 1, paddingRight: 10 }}>
-            <Label>Today's guard rails</Label>
+            <Heading icon="shield-checkmark" color="#a78bfa">Today's guard rails</Heading>
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
               {meters.slice(0, 8).map((m) => <View key={`${m.scope ?? ""}${m.key}`} style={{ width: 9, height: 9, borderRadius: 5, marginRight: 5, backgroundColor: STATE[m.state].color }} />)}
               <Text style={{ color: STATE[worst].color, fontSize: 12.5, fontWeight: "800", marginLeft: 6 }}>{summary}</Text>

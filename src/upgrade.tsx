@@ -36,7 +36,8 @@ export function AllowanceBanner({ message, onClose }: { message: string; onClose
   useEffect(() => { api.planUsage().then(setU).catch(() => {}) }, [])
   const lapsed = !!u?.lapsed || /plan has ended/i.test(message)
   const free = u?.plan === "starter"
-  const title = lapsed ? "Your plan has ended" : "You are out of AI requests"
+  const credits = u?.ai_metering === "credits"
+  const title = lapsed ? "Your plan has ended" : credits ? "You are out of AI credits" : "You are out of AI requests"
   const when = !lapsed && u?.resets_on ? `Your allowance comes back on ${day(u.resets_on)}.` : ""
   const go = (path: string) => router.push(path as never)
   return (
@@ -46,7 +47,7 @@ export function AllowanceBanner({ message, onClose }: { message: string; onClose
         <Text style={{ color: colors.text, fontSize: 15, fontWeight: "800", marginLeft: 8, flex: 1 }}>{title}</Text>
         {onClose ? <Pressable onPress={onClose} hitSlop={10}><Ionicons name="close" size={18} color={colors.muted} /></Pressable> : null}
       </View>
-      <Muted style={{ marginTop: 6 }}>{CAN_SELL ? message : message.replace(/\s*(Upgrade to|Renew or upgrade|You can also buy|they come back when you renew).*$/i, "").trim() || "You have used this month's AI requests."}{when ? ` ${when}` : ""}</Muted>
+      <Muted style={{ marginTop: 6 }}>{CAN_SELL ? message : message.replace(/\s*(Upgrade to|Renew or upgrade|You can also buy|they come back when you renew).*$/i, "").trim() || (credits ? "You have used this month's AI credits." : "You have used this month's AI requests.")}{when ? ` ${when}` : ""}</Muted>
       {CAN_SELL ? (
         <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
           {lapsed ? <View style={{ flex: 1 }}><Button onPress={() => go("/plans")}>Renew plan</Button></View> : free ? <View style={{ flex: 1 }}><Button onPress={() => go("/plans")}>Upgrade</Button></View> : (

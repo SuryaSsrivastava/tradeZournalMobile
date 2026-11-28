@@ -97,6 +97,7 @@ export default function Plans() {
 
   const tiers = ["pro", "elite"].filter((id) => price.data?.tiers[id] && info.data?.[id])
   // every price the server sends is a price PER MONTH: `monthly` when billed monthly, `yearly` when billed yearly (twelve of them are charged at once), `list` the usual price
+  const credits = usage.data?.ai_metering === "credits"  // the plan's AI allowance is counted in credits, not requests
   const savings = (id: string) => { const t = price.data?.tiers[id]; return t && t.monthly > 0 ? Math.round((1 - t.yearly / t.monthly) * 100) : 0 }
   const topSave = Math.max(0, ...tiers.map(savings))
   const bestOff = Math.max(0, ...Object.values(price.data?.tiers ?? {}).flatMap((t) => [t.monthly, t.yearly].map((v) => (t.list > 0 ? Math.round((1 - v / t.list) * 100) : 0))))  // the biggest discount on offer, as on the website
@@ -129,7 +130,7 @@ export default function Plans() {
       {current !== "starter" && !usage.data?.lapsed ? (
         <Rise delay={70}>
           <Press onPress={() => router.push("/addons" as never)}>
-            <Card><Row style={{ justifyContent: "space-between" }}><Row style={{ flex: 1 }}><Ionicons name="add-circle" size={24} color={colors.green} /><View style={{ marginLeft: 12, flex: 1 }}><Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>Running low? Buy an add-on pack</Text><Muted>Extra AI requests, accounts and reviews. Your plan stays as it is.</Muted></View></Row><Ionicons name="chevron-forward" size={18} color={colors.muted} /></Row></Card>
+            <Card><Row style={{ justifyContent: "space-between" }}><Row style={{ flex: 1 }}><Ionicons name="add-circle" size={24} color={colors.green} /><View style={{ marginLeft: 12, flex: 1 }}><Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>Running low? Buy an add-on pack</Text><Muted>Extra AI {credits ? "credits" : "requests"}, accounts and reviews. Your plan stays as it is.</Muted></View></Row><Ionicons name="chevron-forward" size={18} color={colors.muted} /></Row></Card>
           </Press>
         </Rise>
       ) : null}
@@ -193,7 +194,7 @@ export default function Plans() {
                     <Feature on={p.live_positions} text="Live trades tracking" />
                     <Feature on text={n(p.forward_tests, "forward test", "forward tests")} />
                     <Feature on text={n(p.strategies, "saved strategy", "saved strategies")} />
-                    <Feature on text={`${n(p.ai_requests, "AI request", "AI requests")} a month`} />
+                    <Feature on text={`${n(p.ai_requests, credits ? "AI credit" : "AI request", credits ? "AI credits" : "AI requests")} a month`} />
                     <Feature on={p.coach_reviews === null || (p.coach_reviews ?? 0) > 0} text={`${n(p.coach_reviews, "AI coach review", "AI coach reviews")} a month`} />
                     <Feature on={p.premium_models} text="The best AI models" />
                     <Feature on text={`${p.support} support`} />

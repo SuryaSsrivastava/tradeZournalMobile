@@ -152,10 +152,9 @@ export function Sparkline({ points, width = 120, height = 36, color = colors.gre
   const id = `spark${color.slice(1)}${width}`
   return (
     <Svg width={width} height={height}>
-      <Defs><SvgGradient id={id} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={color} stopOpacity={0.4} /><Stop offset="1" stopColor={color} stopOpacity={0} /></SvgGradient></Defs>
+      <Defs><SvgGradient id={id} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={color} stopOpacity={0.22} /><Stop offset="1" stopColor={color} stopOpacity={0} /></SvgGradient></Defs>
       <Path d={area} fill={`url(#${id})`} opacity={p} />
-      <Path d={line} stroke={color} strokeOpacity={0.25} strokeWidth={5} fill="none" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={[len * p, len]} />
-      <Path d={line} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={[len * p, len]} />
+      <Path d={line} stroke={color} strokeWidth={1.75} fill="none" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={[len * p, len]} />
       {p > 0.98 ? <Circle cx={x(n - 1)} cy={y(points[n - 1])} r={3.5} fill={color} /> : null}
     </Svg>
   )
@@ -307,8 +306,8 @@ export function Stat({ label, children, tint, min = "46%", sub, icon, corner, be
     <View style={{ flex: 1, minWidth: min, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: "hidden", paddingHorizontal: 12, paddingVertical: 11 }}>
       <LinearGradient colors={[`${c}${currentScheme() === "light" ? "1f" : "2e"}`, `${c}00`]} start={{ x: 1, y: 0 }} end={{ x: 0.2, y: 0.8 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-        <IconChip icon={icon ?? look.icon} color={c} size={22} />
-        <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.1, textTransform: "uppercase" }}>{label}</Text>
+        <IconChip icon={icon ?? look.icon} color={c} size={20} />
+        <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" }}>{label}</Text>
       </View>
       <View style={{ marginTop: 8 }}>{plain(children) ? <Text style={{ color: tint ?? colors.text, fontSize: 21, fontWeight: "800", letterSpacing: -0.4 }}>{children}</Text> : children}</View>
       {sub ? <Text style={{ color: colors.muted, fontSize: 10.5, marginTop: 2 }}>{sub}</Text> : null}

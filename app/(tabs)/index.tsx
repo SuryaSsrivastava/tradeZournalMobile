@@ -9,7 +9,7 @@ import { useAuth } from "../../src/auth"
 import { useAutoSync } from "../../src/autosync"
 import { Curve } from "../../src/charts"
 import { CopyCard } from "../../src/copycard"
-import { CountUp, Press, Pulse, Rise, Stat } from "../../src/fx"
+import { CountUp, Heading, IconChip, Mini, Press, Pulse, Rise, Stat } from "../../src/fx"
 import { clock, dayLabel, money, until } from "../../src/format"
 import { useLoad } from "../../src/hooks"
 import { LiveTrades } from "../../src/live"
@@ -113,7 +113,7 @@ export default function Home() {
 
       <Card>
         {today !== 0 ? <LinearGradient pointerEvents="none" colors={[`${tone(today)}${today > 0 ? "26" : "1c"}`, "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20 }} /> : null}
-        <Muted>{picked ? "Today · selected accounts" : "Today"}</Muted>
+        <Row style={{ gap: 9, marginBottom: 4 }}><IconChip icon="today" color={tone(today === 0 ? 1 : today)} size={24} /><Muted>{picked ? "Today · selected accounts" : "Today"}</Muted></Row>
         {!accounts.loaded && !trades.loaded ? <Loading /> : <CountUp value={today} format={(n) => money(n, "USD", true)} style={{ color: tone(today), fontSize: 38, fontWeight: "800", letterSpacing: -1.2 }} />}
         <View style={{ marginTop: 10 }}>{all.length > 1 ? <Curve points={equityPoints(all)} height={100} format={(n) => money(n, "USD", true)} labels={equityLabels(all)} /> : <Muted>Your equity curve appears after your first trades.</Muted>}</View>
         {all.length > 0 ? <Row style={{ justifyContent: "space-between", marginTop: 6 }}><Muted>All time</Muted><Text style={{ color: tone(st.net), fontSize: 13, fontWeight: "800" }}>{money(st.net, "USD", true)}</Text></Row> : null}
@@ -125,15 +125,15 @@ export default function Home() {
 
       <Rise delay={120}>
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-          <Stat min="28%" label="Win rate">{all.length ? `${st.winRate.toFixed(0)}%` : "-"}</Stat>
+          <Stat min="28%" label="Win rate" below={all.length ? <Mini.Split a={st.winRate} b={100 - st.winRate} ca={colors.green} cb={colors.red} /> : undefined}>{all.length ? `${st.winRate.toFixed(0)}%` : "-"}</Stat>
           <Stat min="28%" label="Avg R" tint={tone(st.avgR)}>{all.length ? `${sgn(st.avgR)}R` : "-"}</Stat>
-          <Stat min="28%" label="Trades">{String(st.count)}</Stat>
+          <Stat min="28%" label="Trades" below={<View style={{ height: 14 }} />}>{String(st.count)}</Stat>
         </View>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
-          <Quick icon="add-circle-outline" label="Log trade" onPress={() => router.push("/trade/new")} />
-          <Quick icon="pulse-outline" label="Live trades" onPress={() => router.push("/positions")} />
-          <Quick icon="funnel-outline" label="Screener" onPress={() => router.push("/markets")} />
-          <Quick icon="calendar-outline" label="Calendar" onPress={() => router.push("/calendar")} />
+          <Quick icon="add-circle" color="#22d38a" label="Log trade" onPress={() => router.push("/trade/new")} />
+          <Quick icon="pulse" color="#f4566e" label="Live trades" onPress={() => router.push("/positions")} />
+          <Quick icon="funnel" color="#fb923c" label="Screener" onPress={() => router.push("/markets")} />
+          <Quick icon="calendar" color="#fbbf24" label="Calendar" onPress={() => router.push("/calendar")} />
         </View>
       </Rise>
 
@@ -166,7 +166,7 @@ export default function Home() {
         <Card delay={220}>
           <Press onPress={() => router.push("/calendar")}>
             <Row style={{ justifyContent: "space-between" }}>
-              <Label>Next high-impact release</Label>
+              <Heading icon="flash" color="#f4566e">Next high-impact release</Heading>
               <Pulse color={impactColor.high} size={5} />
             </Row>
             <Row style={{ gap: 16, marginTop: 4 }}>
@@ -187,7 +187,7 @@ export default function Home() {
       ) : null}
 
       <Card delay={260}>
-        <Row style={{ justifyContent: "space-between" }}><Label>Market sessions</Label><Ionicons name="globe-outline" size={16} color={colors.muted} /></Row>
+        <Heading icon="globe" color="#38bdf8">Market sessions</Heading>
         <View style={{ marginTop: 6 }}><SessionClock /></View>
       </Card>
 
@@ -199,13 +199,13 @@ export default function Home() {
 
 const chip = themed(() => ({ borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 4 } as const))
 
-function Quick({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+function Quick({ icon, color, label, onPress }: { icon: IconName; color: string; label: string; onPress: () => void }) {
   return (
     <View style={{ flex: 1 }}>
       <Press onPress={onPress}>
         <View style={{ alignItems: "center", paddingVertical: 12, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}>
-          <Ionicons name={icon} size={22} color={colors.green} />
-          <Text style={{ color: colors.text, fontSize: 11, fontWeight: "700", marginTop: 5 }}>{label}</Text>
+          <IconChip icon={icon} color={color} size={30} />
+          <Text style={{ color: colors.text, fontSize: 11, fontWeight: "600", marginTop: 7 }}>{label}</Text>
         </View>
       </Press>
     </View>
